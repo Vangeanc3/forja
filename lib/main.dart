@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'core/constants.dart';
+import 'core/notification_service.dart';
+import 'core/router.dart';
+import 'core/theme.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  await Future.wait([
+    Hive.openBox(ForjaBoxes.settings),
+    Hive.openBox(ForjaBoxes.streak),
+    Hive.openBox(ForjaBoxes.missions),
+    Hive.openBox(ForjaBoxes.achievements),
+    Hive.openBox(ForjaBoxes.stats),
+  ]);
+
+  final onboardingDone = Hive.box(ForjaBoxes.settings)
+      .get(ForjaStorage.onboardingDoneKey, defaultValue: false) as bool;
+
+  await NotificationService.init();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  runApp(
+    ProviderScope(
+      child: ForjaApp(showOnboarding: !onboardingDone),
+    ),
+  );
+
+  // Reagenda notificações em background sem bloquear o startup visual
+  if (onboardingDone) {
+    NotificationService.scheduleAll();
+  }
+}
+
+class ForjaApp extends StatelessWidget {
+  const ForjaApp({super.key, required this.showOnboarding});
+
+  final bool showOnboarding;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: ForjaStrings.appName,
+      debugShowCheckedModeBanner: false,
+      theme: forjaDarkTheme,
+      themeMode: ThemeMode.dark,
+      routerConfig: buildForjaRouter(showOnboarding: showOnboarding),
+    );
+  }
+}

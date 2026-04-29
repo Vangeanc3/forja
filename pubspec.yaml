@@ -1,0 +1,41 @@
+name: forja
+description: "App de disciplina e foco — NoFap tracker com streak e missões."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Navegação
+  go_router: ^14.6.3
+
+  # Estado
+  flutter_riverpod: ^2.6.1
+
+  # Armazenamento local
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Notificações locais
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
+  flutter_timezone: ^1.0.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Geração de código Hive
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
