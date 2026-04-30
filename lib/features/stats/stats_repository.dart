@@ -11,6 +11,7 @@ class StatsModel {
     required this.totalRelapses,
     required this.totalMissionsDone,
     this.memberSince,
+    this.relapses = const [],
   });
 
   final int bestStreak;
@@ -18,6 +19,27 @@ class StatsModel {
   final int totalRelapses;
   final int totalMissionsDone;
   final DateTime? memberSince;
+  final List<RelapseEntry> relapses;
+}
+
+class RelapseEntry {
+  RelapseEntry({
+    required this.dateTime,
+    required this.streakDuration,
+  });
+
+  final DateTime dateTime;
+  final int streakDuration;
+
+  Map<String, dynamic> toMap() => {
+        'dateTime': dateTime.toIso8601String(),
+        'streakDuration': streakDuration,
+      };
+
+  factory RelapseEntry.fromMap(Map<dynamic, dynamic> map) => RelapseEntry(
+        dateTime: DateTime.parse(map['dateTime'] as String),
+        streakDuration: map['streakDuration'] as int,
+      );
 }
 
 class StatsRepository {
@@ -40,12 +62,19 @@ class StatsRepository {
     return raw != null ? DateTime.parse(raw) : null;
   }
 
+  List<RelapseEntry> get relapses {
+    final raw = _box.get('relapses') as List?;
+    if (raw == null) return [];
+    return raw.map((e) => RelapseEntry.fromMap(e as Map)).toList();
+  }
+
   StatsModel buildModel() => StatsModel(
         bestStreak: bestStreak,
         totalCleanDays: totalCleanDays,
         totalRelapses: totalRelapses,
         totalMissionsDone: totalMissionsDone,
         memberSince: memberSince,
+        relapses: relapses,
       );
 
   // Chamado antes de resetar streak — persiste o streak atual no histórico
@@ -53,6 +82,13 @@ class StatsRepository {
     await _box.put('best_streak', math.max(bestStreak, currentStreak));
     await _box.put('total_clean_days', totalCleanDays + currentStreak);
     await _box.put('total_relapses', totalRelapses + 1);
+
+    final currentRelapses = relapses;
+    currentRelapses.add(RelapseEntry(
+      dateTime: DateTime.now(),
+      streakDuration: currentStreak,
+    ));
+    await _box.put('relapses', currentRelapses.map((e) => e.toMap()).toList());
   }
 
   Future<void> incrementMissionsDone() async {

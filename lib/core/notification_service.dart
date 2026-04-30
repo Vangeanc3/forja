@@ -3,9 +3,14 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:hive/hive.dart';
+import '../data/repositories/settings_repository.dart';
+import 'constants.dart';
+
 abstract final class NotificationService {
   static const _dailyBaseId = 100; // IDs 100–109
   static const _inactivityId = 200;
+  static const _weeklyReportId = 300;
   static const _batchDays = 10;
 
   static const _messages = [
@@ -71,8 +76,109 @@ abstract final class NotificationService {
   // ── Agendamento ───────────────────────────────────────────────────
 
   static Future<void> scheduleAll() async {
+    final settings = SettingsRepository();
+    if (!settings.notificationsEnabled) {
+      await _plugin.cancelAll();
+      return;
+    }
+
     await _scheduleDailyMotivational();
     await _scheduleInactivityAlert();
+    await _scheduleWeeklyReport();
+    await _scheduleRiskAlerts();
+  }
+
+  static Future<void> _scheduleRiskAlerts() async {
+    const riskBaseId = 400; // 400-410
+    final settings = SettingsRepository();
+    final riskHours = settings.riskHours;
+
+    // Cancela agendamentos anteriores de risco
+    for (var i = 0; i < 10; i++) {
+      await _plugin.cancel(riskBaseId + i);
+    }
+
+    if (riskHours.isEmpty) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+    final riskMessages = [
+      'Horário de risco. Fique forte.',
+      'Sua espada está sendo testada agora.',
+      'Esse momento vai passar. Resista.',
+    ];
+
+    int idOffset = 0;
+    for (final window in riskHours) {
+      try {
+        final parts = window.split('-');
+        final startStr = parts[0];
+        final startParts = startStr.split(':');
+        final hour = int.parse(startParts[0]);
+        final minute = int.parse(startParts[1]);
+
+        for (var day = 0; day < 3; day++) {
+          var scheduledDate = tz.TZDateTime(
+            tz.local,
+            now.year,
+            now.month,
+            now.day,
+            hour,
+            minute,
+          ).add(Duration(days: day));
+
+          if (scheduledDate.isBefore(now)) continue;
+
+          await _plugin.zonedSchedule(
+            riskBaseId + idOffset++,
+            'Forja',
+            riskMessages[idOffset % riskMessages.length],
+            scheduledDate,
+            _iosDetails,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+
+          if (idOffset >= 10) break;
+        }
+      } catch (_) {
+        // Ignora janelas mal formatadas
+      }
+      if (idOffset >= 10) break;
+    }
+  }
+
+  static Future<void> _scheduleWeeklyReport() async {
+    await _plugin.cancel(_weeklyReportId);
+
+    final now = tz.TZDateTime.now(tz.local);
+    // Próximo domingo às 20h
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      20, // 20:00
+      0,
+    );
+
+    // Se já passou das 20h de hoje ou não é domingo, move para o próximo domingo
+    if (scheduledDate.isBefore(now) || scheduledDate.weekday != DateTime.sunday) {
+      final daysUntilSunday = (DateTime.sunday - scheduledDate.weekday + 7) % 7;
+      scheduledDate = scheduledDate.add(Duration(days: daysUntilSunday == 0 ? 7 : daysUntilSunday));
+    }
+
+    await _plugin.zonedSchedule(
+      _weeklyReportId,
+      'Forja',
+      'Seu relatório semanal está pronto',
+      scheduledDate,
+      _iosDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
   }
 
   static Future<void> _scheduleDailyMotivational() async {
@@ -82,6 +188,7 @@ abstract final class NotificationService {
     }
 
     final now = tz.TZDateTime.now(tz.local);
+    final hour = SettingsRepository().notificationHour;
 
     for (var day = 1; day <= _batchDays; day++) {
       final scheduled = tz.TZDateTime(
@@ -89,7 +196,7 @@ abstract final class NotificationService {
         now.year,
         now.month,
         now.day,
-        8, // 08:00
+        hour, // Usa o horário configurado
         0,
         0,
       ).add(Duration(days: day));

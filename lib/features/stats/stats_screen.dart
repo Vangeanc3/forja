@@ -1,8 +1,8 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:go_router/go_router.dart';
+import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../data/providers/providers.dart';
 import '../achievements/achievement_model.dart';
@@ -84,6 +84,28 @@ class StatsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _NextMilestoneCard(currentStreak: currentStreak),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => context.push(ForjaRoutes.relapseHistory),
+            icon: const Icon(Icons.history_rounded),
+            label: const Text('HISTÓRICO DE RECAÍDAS'),
+            style: FilledButton.styleFrom(
+              backgroundColor: ForjaColors.surface,
+              foregroundColor: ForjaColors.textPrimary,
+              side: const BorderSide(color: ForjaColors.divider),
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => context.push(ForjaRoutes.weeklyReport),
+            icon: const Icon(Icons.assignment_rounded),
+            label: const Text('RELATÓRIOS SEMANAIS'),
+            style: FilledButton.styleFrom(
+              backgroundColor: ForjaColors.surface,
+              foregroundColor: ForjaColors.textPrimary,
+              side: const BorderSide(color: ForjaColors.divider),
+            ),
+          ),
         ],
       ),
     );

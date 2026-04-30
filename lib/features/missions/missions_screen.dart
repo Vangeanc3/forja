@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/models/mission.dart';
 import '../../data/providers/providers.dart';
+import '../../shared/widgets/celebration_overlay.dart';
 
 class MissionsScreen extends ConsumerWidget {
   const MissionsScreen({super.key});
@@ -59,6 +60,23 @@ class MissionsScreen extends ConsumerWidget {
                         ref
                             .read(missionsProvider.notifier)
                             .toggle(mission.id);
+
+                        // Verifica celebração após toggle
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final currentMissions = ref.read(missionsProvider);
+                          final allDone = currentMissions.isNotEmpty &&
+                              currentMissions.every((m) => m.completed);
+
+                          if (allDone) {
+                            final settings = ref.read(settingsRepositoryProvider);
+                            final today = DateTime.now().toIso8601String().substring(0, 10);
+                            
+                            if (settings.lastCelebrationDate != today) {
+                              settings.setCelebrationDone(today);
+                              CelebrationOverlay.show(context);
+                            }
+                          }
+                        });
                       },
                     );
                   },

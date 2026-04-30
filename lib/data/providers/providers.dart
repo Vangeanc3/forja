@@ -4,14 +4,82 @@ import '../models/mission.dart';
 import '../repositories/missions_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../repositories/streak_repository.dart';
+import '../../features/journal/journal_entry.dart';
+import '../../features/journal/journal_repository.dart';
 import '../../features/achievements/achievement_model.dart';
 import '../../features/achievements/achievements_repository.dart';
 import '../../features/stats/stats_repository.dart';
+import '../../features/stats/weekly_report_repository.dart';
+import '../../features/stats/weekly_report_model.dart';
+import '../../features/weekly_challenge/weekly_challenge_repository.dart';
+import '../../features/monk_mode/monk_mode_repository.dart';
 
 // Repositories
 final streakRepositoryProvider = Provider((_) => StreakRepository());
 final missionsRepositoryProvider = Provider((_) => MissionsRepository());
-final settingsRepositoryProvider = Provider((_) => SettingsRepository());
+
+class SettingsNotifier extends StateNotifier<SettingsRepository> {
+  SettingsNotifier(this._repo) : super(_repo);
+  final SettingsRepository _repo;
+
+  Future<void> updateName(String name) async {
+    await _repo.updateName(name);
+    state = _repo;
+  }
+
+  Future<void> updateMode(String mode) async {
+    await _repo.updateMode(mode);
+    state = _repo;
+  }
+
+  Future<void> updateReason(String reason) async {
+    await _repo.updateReason(reason);
+    state = _repo;
+  }
+
+  Future<void> updateNotificationsEnabled(bool enabled) async {
+    await _repo.updateNotificationsEnabled(enabled);
+    state = _repo;
+  }
+
+  Future<void> updateNotificationHour(int hour) async {
+    await _repo.updateNotificationHour(hour);
+    state = _repo;
+  }
+
+  Future<void> updateSupportContact(String name, String phone) async {
+    await _repo.updateSupportContact(name, phone);
+    state = _repo;
+  }
+
+  Future<void> updateRiskHours(List<String> hours) async {
+    await _repo.updateRiskHours(hours);
+    state = _repo;
+  }
+}
+
+final settingsRepositoryProvider =
+    StateNotifierProvider<SettingsNotifier, SettingsRepository>(
+  (_) => SettingsNotifier(SettingsRepository()),
+);
+
+// Journal
+final journalRepositoryProvider = Provider((_) => JournalRepository());
+
+class JournalNotifier extends StateNotifier<List<JournalEntry>> {
+  JournalNotifier(this._repo) : super(_repo.getAll());
+  final JournalRepository _repo;
+
+  Future<void> addEntry(String content) async {
+    await _repo.addEntry(content);
+    state = _repo.getAll();
+  }
+}
+
+final journalProvider =
+    StateNotifierProvider<JournalNotifier, List<JournalEntry>>(
+  (ref) => JournalNotifier(ref.read(journalRepositoryProvider)),
+);
 
 // Streak
 class StreakNotifier extends StateNotifier<int> {
@@ -79,6 +147,57 @@ final achievementsProvider =
 
 // Stats
 final statsRepositoryProvider = Provider((_) => StatsRepository());
+
+// Weekly Report
+final weeklyReportRepositoryProvider = Provider((_) => WeeklyReportRepository());
+
+class WeeklyReportNotifier extends StateNotifier<List<WeeklyReport>> {
+  WeeklyReportNotifier(this._repo) : super(_repo.getAllReports());
+  final WeeklyReportRepository _repo;
+
+  Future<void> saveReport(WeeklyReport report) async {
+    await _repo.saveReport(report);
+    state = _repo.getAllReports();
+  }
+}
+
+final weeklyReportProvider = StateNotifierProvider<WeeklyReportNotifier, List<WeeklyReport>>(
+  (ref) => WeeklyReportNotifier(ref.read(weeklyReportRepositoryProvider)),
+);
+
+// Weekly Challenge
+final weeklyChallengeRepositoryProvider = Provider((_) => WeeklyChallengeRepository());
+
+class WeeklyChallengeNotifier extends StateNotifier<bool> {
+  WeeklyChallengeNotifier(this._repo) : super(_repo.isChallengeAccepted());
+  final WeeklyChallengeRepository _repo;
+
+  Future<void> accept(bool accepted) async {
+    await _repo.acceptChallenge(accepted);
+    state = accepted;
+  }
+}
+
+final weeklyChallengeProvider = StateNotifierProvider<WeeklyChallengeNotifier, bool>(
+  (ref) => WeeklyChallengeNotifier(ref.read(weeklyChallengeRepositoryProvider)),
+);
+
+// Monk Mode
+final monkModeRepositoryProvider = Provider((_) => MonkModeRepository());
+
+class MonkModeNotifier extends StateNotifier<bool> {
+  MonkModeNotifier(this._repo) : super(_repo.isActive);
+  final MonkModeRepository _repo;
+
+  Future<void> toggle(bool active, List<String> restrictions) async {
+    await _repo.setMonkMode(active, restrictions);
+    state = active;
+  }
+}
+
+final monkModeProvider = StateNotifierProvider<MonkModeNotifier, bool>(
+  (ref) => MonkModeNotifier(ref.read(monkModeRepositoryProvider)),
+);
 
 class StatsNotifier extends StateNotifier<StatsModel> {
   StatsNotifier(this._repo) : super(_repo.buildModel());

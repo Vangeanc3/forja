@@ -18,6 +18,10 @@ void main() async {
     Hive.openBox(ForjaBoxes.missions),
     Hive.openBox(ForjaBoxes.achievements),
     Hive.openBox(ForjaBoxes.stats),
+    Hive.openBox(ForjaBoxes.journal),
+    Hive.openBox(ForjaBoxes.weeklyChallenge),
+    Hive.openBox(ForjaBoxes.monkMode),
+    Hive.openBox(ForjaBoxes.weeklyReports),
   ]);
 
   final onboardingDone = Hive.box(ForjaBoxes.settings)

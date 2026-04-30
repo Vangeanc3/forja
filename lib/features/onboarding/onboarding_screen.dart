@@ -17,6 +17,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
   final _nameController = TextEditingController();
+  final _reasonController = TextEditingController();
   String _selectedMode = ForjaMode.nofap;
   int _currentPage = 0;
 
@@ -24,6 +25,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -37,6 +39,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(settingsRepositoryProvider).completeOnboarding(
           name: _nameController.text.trim(),
           mode: _selectedMode,
+          reason: _reasonController.text.trim(),
         );
     await ref.read(streakProvider.notifier).start();
     await ref.read(statsProvider.notifier).setMemberSince(DateTime.now());
@@ -67,7 +70,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPageChanged: (i) => setState(() => _currentPage = i),
                 children: [
                   _WelcomeSlide(
-                    controller: _nameController,
+                    nameController: _nameController,
+                    reasonController: _reasonController,
                     onNext: _nextPage,
                   ),
                   _ModeSlide(
@@ -109,9 +113,14 @@ class _Dot extends StatelessWidget {
 }
 
 class _WelcomeSlide extends StatelessWidget {
-  const _WelcomeSlide({required this.controller, required this.onNext});
+  const _WelcomeSlide({
+    required this.nameController,
+    required this.reasonController,
+    required this.onNext,
+  });
 
-  final TextEditingController controller;
+  final TextEditingController nameController;
+  final TextEditingController reasonController;
   final VoidCallback onNext;
 
   @override
@@ -119,35 +128,54 @@ class _WelcomeSlide extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 8, 32, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('🔥', style: text.displayLarge?.copyWith(fontSize: 56)),
-          const SizedBox(height: 24),
-          Text('Bem-vindo à\nForja.', style: text.displayMedium),
-          const SizedBox(height: 8),
-          Text('O processo começa com um nome.', style: text.bodyLarge),
-          const Spacer(),
-          TextField(
-            controller: controller,
-            style: text.titleLarge,
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (_) => onNext(),
-            decoration: InputDecoration(
-              hintText: 'Seu nome',
-              hintStyle:
-                  text.titleLarge?.copyWith(color: ForjaColors.textSecondary),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: ForjaColors.divider, width: 1.5),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: ForjaColors.ember, width: 2),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('🔥', style: text.displayLarge?.copyWith(fontSize: 56)),
+            const SizedBox(height: 24),
+            Text('Bem-vindo à\nForja.', style: text.displayMedium),
+            const SizedBox(height: 8),
+            Text('O processo começa com um nome.', style: text.bodyLarge),
+            const SizedBox(height: 24),
+            TextField(
+              controller: nameController,
+              style: text.titleLarge,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'Seu nome',
+                hintStyle:
+                    text.titleLarge?.copyWith(color: ForjaColors.textSecondary),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: ForjaColors.divider, width: 1.5),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: ForjaColors.ember, width: 2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 40),
-          FilledButton(onPressed: onNext, child: const Text('PRÓXIMO')),
-        ],
+            const SizedBox(height: 32),
+            Text('Por que você quer mudar?', style: text.bodyLarge),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              style: text.bodyLarge,
+              decoration: InputDecoration(
+                hintText: 'Ex: Para ser o homem que minha família merece',
+                hintStyle:
+                    text.bodyMedium?.copyWith(color: ForjaColors.textSecondary),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: ForjaColors.divider, width: 1.5),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: ForjaColors.ember, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 48),
+            FilledButton(onPressed: onNext, child: const Text('PRÓXIMO')),
+          ],
+        ),
       ),
     );
   }
