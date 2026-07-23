@@ -3,9 +3,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'package:hive/hive.dart';
-import '../data/repositories/settings_repository.dart';
-import 'constants.dart';
+import '../domain/entities/settings_entity.dart';
 
 abstract final class NotificationService {
   static const _dailyBaseId = 100; // IDs 100–109
@@ -63,8 +61,10 @@ abstract final class NotificationService {
   // ── Permissão ─────────────────────────────────────────────────────
 
   static Future<bool> requestPermission() async {
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     return await ios?.requestPermissions(
           alert: true,
           badge: false,
@@ -75,23 +75,20 @@ abstract final class NotificationService {
 
   // ── Agendamento ───────────────────────────────────────────────────
 
-  static Future<void> scheduleAll() async {
-    final settings = SettingsRepository();
+  static Future<void> scheduleAll(SettingsEntity settings) async {
     if (!settings.notificationsEnabled) {
       await _plugin.cancelAll();
       return;
     }
 
-    await _scheduleDailyMotivational();
+    await _scheduleDailyMotivational(settings.notificationHour);
     await _scheduleInactivityAlert();
     await _scheduleWeeklyReport();
-    await _scheduleRiskAlerts();
+    await _scheduleRiskAlerts(settings.riskHours);
   }
 
-  static Future<void> _scheduleRiskAlerts() async {
+  static Future<void> _scheduleRiskAlerts(List<String> riskHours) async {
     const riskBaseId = 400; // 400-410
-    final settings = SettingsRepository();
-    final riskHours = settings.riskHours;
 
     // Cancela agendamentos anteriores de risco
     for (var i = 0; i < 10; i++) {
@@ -163,9 +160,12 @@ abstract final class NotificationService {
     );
 
     // Se já passou das 20h de hoje ou não é domingo, move para o próximo domingo
-    if (scheduledDate.isBefore(now) || scheduledDate.weekday != DateTime.sunday) {
+    if (scheduledDate.isBefore(now) ||
+        scheduledDate.weekday != DateTime.sunday) {
       final daysUntilSunday = (DateTime.sunday - scheduledDate.weekday + 7) % 7;
-      scheduledDate = scheduledDate.add(Duration(days: daysUntilSunday == 0 ? 7 : daysUntilSunday));
+      scheduledDate = scheduledDate.add(
+        Duration(days: daysUntilSunday == 0 ? 7 : daysUntilSunday),
+      );
     }
 
     await _plugin.zonedSchedule(
@@ -181,14 +181,13 @@ abstract final class NotificationService {
     );
   }
 
-  static Future<void> _scheduleDailyMotivational() async {
+  static Future<void> _scheduleDailyMotivational(int hour) async {
     // Cancela lote anterior antes de reagendar
     for (var i = 0; i < _batchDays; i++) {
       await _plugin.cancel(_dailyBaseId + i);
     }
 
     final now = tz.TZDateTime.now(tz.local);
-    final hour = SettingsRepository().notificationHour;
 
     for (var day = 1; day <= _batchDays; day++) {
       final scheduled = tz.TZDateTime(
@@ -220,8 +219,7 @@ abstract final class NotificationService {
     await _plugin.cancel(_inactivityId);
 
     // Reagenda sempre que o app abre — se o usuário não abrir por 2 dias, dispara
-    final scheduled =
-        tz.TZDateTime.now(tz.local).add(const Duration(days: 2));
+    final scheduled = tz.TZDateTime.now(tz.local).add(const Duration(days: 2));
 
     await _plugin.zonedSchedule(
       _inactivityId,

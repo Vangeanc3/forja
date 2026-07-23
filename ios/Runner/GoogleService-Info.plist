@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>276133740162-o0v0snq5cvfuuqutkvtagg0psag7foo6.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.276133740162-o0v0snq5cvfuuqutkvtagg0psag7foo6</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBy8ctlCGSXWx2s1YoEKampjM-TsmuSur4</string>
+	<key>GCM_SENDER_ID</key>
+	<string>276133740162</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.neograde.forja</string>
+	<key>PROJECT_ID</key>
+	<string>forja-flutter</string>
+	<key>STORAGE_BUCKET</key>
+	<string>forja-flutter.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:276133740162:ios:3e6b3c1958b1bc196d7e9b</string>
+</dict>
+</plist>

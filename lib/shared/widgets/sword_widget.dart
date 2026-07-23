@@ -5,33 +5,34 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
 enum SwordStage {
-  raw,      // 0–6 dias
-  heating,  // 7–29
-  forged,   // 30–59
-  sharp,    // 60–89
+  raw, // 0–6 dias
+  heating, // 7–29
+  forged, // 30–59
+  sharp, // 60–89
   complete; // 90+
 
   static SwordStage fromDays(int days) {
     if (days >= 90) return complete;
     if (days >= 60) return sharp;
     if (days >= 30) return forged;
-    if (days >= 7)  return heating;
+    if (days >= 7) return heating;
     return raw;
   }
 
   String get label => switch (this) {
-        raw      => 'FERRO BRUTO',
-        heating  => 'AQUECENDO',
-        forged   => 'MOLDADA',
-        sharp    => 'AFIADA',
-        complete => 'COMPLETA',
-      };
+    raw => 'FERRO BRUTO',
+    heating => 'AQUECENDO',
+    forged => 'MOLDADA',
+    sharp => 'AFIADA',
+    complete => 'COMPLETA',
+  };
 }
 
 class SwordWidget extends StatefulWidget {
-  const SwordWidget({super.key, required this.days});
+  const SwordWidget({super.key, required this.days, this.showLabel = false});
 
   final int days;
+  final bool showLabel;
 
   @override
   State<SwordWidget> createState() => _SwordWidgetState();
@@ -52,10 +53,7 @@ class _SwordWidgetState extends State<SwordWidget>
       vsync: this,
       duration: Duration(milliseconds: _pulseMsFor(_stage)),
     )..repeat(reverse: true);
-    _pulse = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    );
+    _pulse = CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut);
     _particleController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -63,12 +61,12 @@ class _SwordWidgetState extends State<SwordWidget>
   }
 
   int _pulseMsFor(SwordStage s) => switch (s) {
-        SwordStage.raw      => 3200,
-        SwordStage.heating  => 2600,
-        SwordStage.forged   => 2000,
-        SwordStage.sharp    => 1500,
-        SwordStage.complete => 1100,
-      };
+    SwordStage.raw => 3200,
+    SwordStage.heating => 2600,
+    SwordStage.forged => 2000,
+    SwordStage.sharp => 1500,
+    SwordStage.complete => 1100,
+  };
 
   @override
   void didUpdateWidget(SwordWidget old) {
@@ -103,16 +101,18 @@ class _SwordWidgetState extends State<SwordWidget>
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          stage.label,
-          style: const TextStyle(
-            color: ForjaColors.textSecondary,
-            fontSize: 10,
-            letterSpacing: 2.0,
-            fontWeight: FontWeight.w600,
+        if (widget.showLabel) ...[
+          const SizedBox(height: 12),
+          Text(
+            stage.label,
+            style: const TextStyle(
+              color: ForjaColors.textSecondary,
+              fontSize: 10,
+              letterSpacing: 2.0,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -128,7 +128,7 @@ class SwordPainter extends CustomPainter {
   });
 
   final SwordStage stage;
-  final double pulse;    // 0..1 eased, repeating reverse
+  final double pulse; // 0..1 eased, repeating reverse
   final double particle; // 0..1 linear, repeating
 
   // ── Geometry ─────────────────────────────────────────────────────
@@ -161,41 +161,43 @@ class SwordPainter extends CustomPainter {
   Path _grip(Size s) {
     final cx = s.width / 2;
     final hw = s.width * 0.065;
-    return Path()
-      ..addRRect(RRect.fromRectAndRadius(
+    return Path()..addRRect(
+      RRect.fromRectAndRadius(
         Rect.fromLTRB(cx - hw, s.height * 0.588, cx + hw, s.height * 0.800),
         const Radius.circular(4),
-      ));
+      ),
+    );
   }
 
   Path _pommel(Size s) {
     final cx = s.width / 2;
     final r = s.width * 0.110;
-    return Path()
-      ..addOval(Rect.fromCenter(
+    return Path()..addOval(
+      Rect.fromCenter(
         center: Offset(cx, s.height * 0.874),
         width: r * 2,
         height: r * 2.4,
-      ));
+      ),
+    );
   }
 
   // Rough iron blob — no sword form yet
   Path _rawBlob(Size s) {
     final cx = s.width / 2;
     return Path()
-      ..moveTo(cx + 5,  s.height * 0.12)
+      ..moveTo(cx + 5, s.height * 0.12)
       ..lineTo(cx + 20, s.height * 0.22)
       ..lineTo(cx + 24, s.height * 0.37)
       ..lineTo(cx + 17, s.height * 0.50)
       ..lineTo(cx + 22, s.height * 0.62)
       ..lineTo(cx + 13, s.height * 0.78)
-      ..lineTo(cx +  2, s.height * 0.84)
-      ..lineTo(cx -  9, s.height * 0.81)
+      ..lineTo(cx + 2, s.height * 0.84)
+      ..lineTo(cx - 9, s.height * 0.81)
       ..lineTo(cx - 18, s.height * 0.70)
       ..lineTo(cx - 13, s.height * 0.55)
       ..lineTo(cx - 21, s.height * 0.40)
       ..lineTo(cx - 14, s.height * 0.23)
-      ..lineTo(cx -  3, s.height * 0.11)
+      ..lineTo(cx - 3, s.height * 0.11)
       ..close();
   }
 
@@ -205,15 +207,21 @@ class SwordPainter extends CustomPainter {
     final blob = _rawBlob(s);
 
     canvas.drawPath(blob, Paint()..color = const Color(0xFF252525));
-    canvas.drawPath(blob, Paint()
-      ..color = const Color(0xFF3E3E3E)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5);
+    canvas.drawPath(
+      blob,
+      Paint()
+        ..color = const Color(0xFF3E3E3E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
 
     // Faint forge-heat glow
-    canvas.drawPath(blob, Paint()
-      ..color = ForjaColors.ember.withValues(alpha: pulse * 0.10)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22));
+    canvas.drawPath(
+      blob,
+      Paint()
+        ..color = ForjaColors.ember.withValues(alpha: pulse * 0.10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
+    );
   }
 
   void _paintHeating(Canvas canvas, Size s) {
@@ -232,8 +240,15 @@ class SwordPainter extends CustomPainter {
   void _paintForged(Canvas canvas, Size s) {
     _glow(canvas, s, blur: 18, alpha: 0.30 + pulse * 0.28);
 
-    _fillAll(canvas, s,
-        color: Color.lerp(const Color(0xFF3A1600), const Color(0xFF5A2800), pulse)!);
+    _fillAll(
+      canvas,
+      s,
+      color: Color.lerp(
+        const Color(0xFF3A1600),
+        const Color(0xFF5A2800),
+        pulse,
+      )!,
+    );
 
     final edge = Paint()
       ..style = PaintingStyle.stroke
@@ -249,12 +264,15 @@ class SwordPainter extends CustomPainter {
     _glow(canvas, s, blur: 10, alpha: 0.48 + pulse * 0.30);
 
     canvas.drawPath(
-        _blade(s),
-        Paint()
-          ..color =
-              Color.lerp(ForjaColors.emberDim, ForjaColors.ember, pulse)!);
-    final metalColor =
-        Color.lerp(const Color(0xFF4A2000), ForjaColors.emberDim, pulse)!;
+      _blade(s),
+      Paint()
+        ..color = Color.lerp(ForjaColors.emberDim, ForjaColors.ember, pulse)!,
+    );
+    final metalColor = Color.lerp(
+      const Color(0xFF4A2000),
+      ForjaColors.emberDim,
+      pulse,
+    )!;
     canvas.drawPath(_guard(s), Paint()..color = metalColor);
     canvas.drawPath(_grip(s), Paint()..color = metalColor);
     canvas.drawPath(_pommel(s), Paint()..color = metalColor);
@@ -275,19 +293,22 @@ class SwordPainter extends CustomPainter {
     _glow(canvas, s, blur: 14, alpha: 0.55 + pulse * 0.30);
 
     canvas.drawPath(
-        _blade(s),
-        Paint()
-          ..color =
-              Color.lerp(ForjaColors.ember, ForjaColors.emberGlow, pulse)!);
+      _blade(s),
+      Paint()
+        ..color = Color.lerp(ForjaColors.ember, ForjaColors.emberGlow, pulse)!,
+    );
     canvas.drawPath(_guard(s), Paint()..color = ForjaColors.ember);
     canvas.drawPath(_grip(s), Paint()..color = ForjaColors.emberDim);
     canvas.drawPath(_pommel(s), Paint()..color = ForjaColors.ember);
 
     // White sheen over blade
-    canvas.drawPath(_blade(s), Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = Colors.white.withValues(alpha: 0.50 + pulse * 0.40));
+    canvas.drawPath(
+      _blade(s),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0
+        ..color = Colors.white.withValues(alpha: 0.50 + pulse * 0.40),
+    );
 
     _edgeShimmer(canvas, s, opacity: 0.85 + pulse * 0.15);
     _tipFlare(canvas, s, opacity: 0.90);
@@ -296,8 +317,12 @@ class SwordPainter extends CustomPainter {
 
   // ── Shared effects ────────────────────────────────────────────────
 
-  void _glow(Canvas canvas, Size s,
-      {required double blur, required double alpha}) {
+  void _glow(
+    Canvas canvas,
+    Size s, {
+    required double blur,
+    required double alpha,
+  }) {
     final p = Paint()
       ..color = ForjaColors.ember.withValues(alpha: alpha.clamp(0.0, 1.0))
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
@@ -342,15 +367,26 @@ class SwordPainter extends CustomPainter {
       3.0 + pulse * 2.5,
       Paint()
         ..color = Colors.white.withValues(alpha: opacity.clamp(0.0, 1.0))
-        ..maskFilter =
-            MaskFilter.blur(BlurStyle.normal, 5.0 + pulse * 4.0),
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 5.0 + pulse * 4.0),
     );
   }
 
   // Deterministic particle x-offsets (relative to center, fraction of canvas width)
   static const _px = [
-    0.06, -0.19, 0.31, -0.44, 0.13, 0.27,
-    -0.23, 0.40, -0.09, 0.34, -0.29, 0.16, -0.39, 0.22,
+    0.06,
+    -0.19,
+    0.31,
+    -0.44,
+    0.13,
+    0.27,
+    -0.23,
+    0.40,
+    -0.09,
+    0.34,
+    -0.29,
+    0.16,
+    -0.39,
+    0.22,
   ];
 
   void _particles(Canvas canvas, Size s) {
@@ -382,12 +418,12 @@ class SwordPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) => switch (stage) {
-        SwordStage.raw      => _paintRaw(canvas, size),
-        SwordStage.heating  => _paintHeating(canvas, size),
-        SwordStage.forged   => _paintForged(canvas, size),
-        SwordStage.sharp    => _paintSharp(canvas, size),
-        SwordStage.complete => _paintComplete(canvas, size),
-      };
+    SwordStage.raw => _paintRaw(canvas, size),
+    SwordStage.heating => _paintHeating(canvas, size),
+    SwordStage.forged => _paintForged(canvas, size),
+    SwordStage.sharp => _paintSharp(canvas, size),
+    SwordStage.complete => _paintComplete(canvas, size),
+  };
 
   @override
   bool shouldRepaint(SwordPainter old) =>

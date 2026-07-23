@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/bootstrap/app_blocs.dart';
+import 'core/bootstrap/firebase_bootstrap.dart';
 import 'core/constants.dart';
 import 'core/notification_service.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
+import 'data/repositories/settings_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,15 +21,20 @@ void main() async {
     Hive.openBox(ForjaBoxes.achievements),
     Hive.openBox(ForjaBoxes.stats),
     Hive.openBox(ForjaBoxes.journal),
+    Hive.openBox(ForjaBoxes.tasks),
     Hive.openBox(ForjaBoxes.weeklyChallenge),
     Hive.openBox(ForjaBoxes.monkMode),
     Hive.openBox(ForjaBoxes.weeklyReports),
   ]);
 
-  final onboardingDone = Hive.box(ForjaBoxes.settings)
-      .get(ForjaStorage.onboardingDoneKey, defaultValue: false) as bool;
+  final onboardingDone =
+      Hive.box(
+            ForjaBoxes.settings,
+          ).get(ForjaStorage.onboardingDoneKey, defaultValue: false)
+          as bool;
 
   await NotificationService.init();
+  await FirebaseBootstrap.init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -36,15 +43,11 @@ void main() async {
     ),
   );
 
-  runApp(
-    ProviderScope(
-      child: ForjaApp(showOnboarding: !onboardingDone),
-    ),
-  );
+  runApp(ForjaBlocScope(child: ForjaApp(showOnboarding: !onboardingDone)));
 
   // Reagenda notificações em background sem bloquear o startup visual
   if (onboardingDone) {
-    NotificationService.scheduleAll();
+    NotificationService.scheduleAll(SettingsRepository().snapshot());
   }
 }
 

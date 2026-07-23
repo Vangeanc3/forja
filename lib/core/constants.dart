@@ -3,24 +3,6 @@ abstract final class ForjaStrings {
   static const tagline = 'Forje sua disciplina';
 }
 
-abstract final class ForjaRoutes {
-  static const home = '/';
-  static const onboarding = '/onboarding';
-  static const missions = '/missions';
-  static const relapse = '/relapse';
-  static const achievements = '/achievements';
-  static const stats = '/stats';
-  static const journal = '/journal';
-  static const urgency = '/urgency';
-  static const relapseHistory = '/relapse-history';
-  static const weeklyChallenge = '/weekly-challenge';
-  static const monkMode = '/monk-mode';
-  static const weeklyReport = '/weekly-report';
-  static const profile = '/profile';
-  static const supportContact = '/support-contact';
-  static const riskHours = '/risk-hours';
-}
-
 abstract final class ForjaBoxes {
   static const settings = 'settings';
   static const streak = 'streak';
@@ -28,6 +10,7 @@ abstract final class ForjaBoxes {
   static const achievements = 'achievements';
   static const stats = 'stats';
   static const journal = 'journal';
+  static const tasks = 'tasks';
   static const weeklyChallenge = 'weekly_challenge';
   static const monkMode = 'monk_mode';
   static const weeklyReports = 'weekly_reports';
@@ -44,14 +27,17 @@ abstract final class ForjaStorage {
   static const notificationsEnabledKey = 'notifications_enabled';
   static const notificationHourKey = 'notification_hour';
   static const lastCelebrationDateKey = 'last_celebration_date';
+  static const lastDailyQuotePopupDateKey = 'last_daily_quote_popup_date';
   static const supportContactNameKey = 'support_contact_name';
   static const supportContactPhoneKey = 'support_contact_phone';
   static const riskHoursKey = 'risk_hours';
+  static const userGoalsKey = 'user_goals';
 }
 
 abstract final class ForjaMode {
-  static const nofap = 'nofap';
-  static const monk = 'monk';
+  static const recruta = 'recruta';
+  static const guerreiro = 'guerreiro';
+  static const monge = 'monge';
 }
 
 abstract final class ForjaQuestions {

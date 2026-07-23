@@ -1,0 +1,38 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "buildConfigurations": {
+          ".": {
+            "projectId": "forja-flutter",
+            "appId": "1:276133740162:android:63bd9a6f2db6b0e06d7e9b",
+            "fileOutput": "android/app/google-services.json"
+          }
+        }
+      },
+      "ios": {
+        "targets": {
+          "Runner": {
+            "projectId": "forja-flutter",
+            "appId": "1:276133740162:ios:3e6b3c1958b1bc196d7e9b",
+            "uploadDebugSymbols": false,
+            "fileOutput": "ios/Runner/GoogleService-Info.plist"
+          }
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "forja-flutter",
+          "configurations": {
+            "android": "1:276133740162:android:63bd9a6f2db6b0e06d7e9b",
+            "ios": "1:276133740162:ios:3e6b3c1958b1bc196d7e9b"
+          }
+        }
+      }
+    }
+  }
+}

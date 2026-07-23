@@ -44,7 +44,9 @@ class _CelebrationOverlayState extends State<CelebrationOverlay>
   @override
   void initState() {
     super.initState();
-    final dayOfYear = DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
+    final dayOfYear = DateTime.now()
+        .difference(DateTime(DateTime.now().year, 1, 1))
+        .inDays;
     _subtitle = _subtitles[dayOfYear % _subtitles.length];
 
     _cardController = AnimationController(
@@ -101,7 +103,9 @@ class _CelebrationOverlayState extends State<CelebrationOverlay>
                 decoration: BoxDecoration(
                   color: ForjaColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ForjaColors.ember.withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: ForjaColors.ember.withValues(alpha: 0.5),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: ForjaColors.ember.withValues(alpha: 0.2),
@@ -113,14 +117,12 @@ class _CelebrationOverlayState extends State<CelebrationOverlay>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      '⚔️',
-                      style: TextStyle(fontSize: 64),
-                    ),
+                    const Text('⚔️', style: TextStyle(fontSize: 64)),
                     const SizedBox(height: 16),
                     Text(
                       'Missões completas!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             color: ForjaColors.ember,
                             fontWeight: FontWeight.bold,
                           ),
@@ -130,9 +132,9 @@ class _CelebrationOverlayState extends State<CelebrationOverlay>
                     Text(
                       _subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: ForjaColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        color: ForjaColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
@@ -183,9 +185,9 @@ class _ParticlePainter extends CustomPainter {
       // Simular brasa/faísca com um pequeno rastro ou variação de brilho
       final alpha = (1.0 - yProgress).clamp(0.0, 1.0);
       paint.color = ForjaColors.ember.withValues(alpha: alpha * 0.7);
-      
+
       canvas.drawCircle(Offset(x, y), p.size, paint);
-      
+
       // Um pequeno brilho em volta da partícula
       final glowPaint = Paint()
         ..color = ForjaColors.ember.withValues(alpha: alpha * 0.3)
