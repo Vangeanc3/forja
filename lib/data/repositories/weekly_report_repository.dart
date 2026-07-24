@@ -34,6 +34,10 @@ class WeeklyReportRepository {
     }
   }
 
+  Future<void> clear() async {
+    await _reportBox.clear();
+  }
+
   Future<void> mergeRemote(List<FirebaseSyncDocument> documents) async {
     final byId = {
       for (final report in getAllReports()) _reportId(report): report,

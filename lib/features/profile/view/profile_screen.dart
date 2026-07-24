@@ -127,7 +127,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
             const SizedBox(height: 32),
-            const SocialAuthPanel(showContainer: true),
+            const SocialAuthPanel(
+              showContainer: true,
+              redirectOnSuccess: false,
+            ),
             const SizedBox(height: 24),
 
             // Minha Jornada

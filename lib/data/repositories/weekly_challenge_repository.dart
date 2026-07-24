@@ -62,6 +62,10 @@ class WeeklyChallengeRepository {
 
   Future<void> syncCurrent() => _syncChallenge(getCurrentChallenge());
 
+  Future<void> clear() async {
+    await _box.clear();
+  }
+
   Future<void> mergeRemote(FirebaseSyncDocument? document) async {
     if (document == null) {
       await syncCurrent();

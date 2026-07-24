@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:forja/features/onboarding/router/onboarding_router.dart';
 import 'package:forja/features/home/router/home_router.dart';
 import 'package:forja/data/repositories/settings_repository.dart';
+import 'package:forja/data/services/local_remote_sync_service.dart';
 
 import '../../../core/theme.dart';
 import '../../../domain/entities/auth_user_entity.dart';
@@ -13,19 +14,28 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../router/auth_router.dart';
 
-class SocialAuthPanel extends StatelessWidget {
+class SocialAuthPanel extends StatefulWidget {
   const SocialAuthPanel({
     super.key,
     this.compact = false,
     this.showContainer = true,
     this.showTitle = true,
+    this.redirectOnSuccess = true,
     this.forceSignUp,
   });
 
   final bool compact;
   final bool showContainer;
   final bool showTitle;
+  final bool redirectOnSuccess;
   final bool? forceSignUp;
+
+  @override
+  State<SocialAuthPanel> createState() => _SocialAuthPanelState();
+}
+
+class _SocialAuthPanelState extends State<SocialAuthPanel> {
+  bool _isSyncing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +43,7 @@ class SocialAuthPanel extends StatelessWidget {
       listenWhen: (previous, current) =>
           previous.errorMessage != current.errorMessage ||
           previous.submissionStatus != current.submissionStatus,
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state.submissionStatus == AuthSubmissionStatus.failure) {
           final message = state.errorMessage;
           if (message == null || message.isEmpty) return;
@@ -45,33 +55,59 @@ class SocialAuthPanel extends StatelessWidget {
         }
 
         if (state.submissionStatus == AuthSubmissionStatus.success &&
-            state.isAuthenticated) {
+            state.isAuthenticated &&
+            widget.redirectOnSuccess) {
           final settings = context.read<SettingsRepository>();
+
+          if (!settings.onboardingDone) {
+            setState(() => _isSyncing = true);
+            try {
+              await context.read<LocalRemoteSyncService>().syncAll();
+            } finally {
+              if (mounted) setState(() => _isSyncing = false);
+            }
+          }
+
+          if (!mounted) return;
+
           if (settings.onboardingDone) {
             context.go(HomeRouter.initial);
           } else {
             context.go(OnboardingRouter.initial);
           }
         }
+
+        if (state.submissionStatus == AuthSubmissionStatus.success &&
+            !state.isAuthenticated) {
+          setState(() => _isSyncing = true);
+          try {
+            await context.read<LocalRemoteSyncService>().clearAllLocalData();
+          } finally {
+            if (mounted) setState(() => _isSyncing = false);
+          }
+
+          if (!mounted) return;
+          context.go(AuthRouter.initial);
+        }
       },
       builder: (context, state) {
         final content = state.isAuthenticated
             ? _ConnectedAccount(
                 user: state.user!,
-                loading: state.isLoading,
-                compact: compact,
+                loading: state.isLoading || _isSyncing,
+                compact: widget.compact,
               )
             : _SignInActions(
-                compact: compact,
-                loading: state.isLoading,
-                showTitle: showTitle,
-                forceSignUp: forceSignUp,
+                compact: widget.compact,
+                loading: state.isLoading || _isSyncing,
+                showTitle: widget.showTitle,
+                forceSignUp: widget.forceSignUp,
               );
 
-        if (!showContainer) return content;
+        if (!widget.showContainer) return content;
 
         return EmberCard(
-          padding: EdgeInsets.all(compact ? 14 : 16),
+          padding: EdgeInsets.all(widget.compact ? 14 : 16),
           child: content,
         );
       },

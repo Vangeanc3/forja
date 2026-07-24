@@ -33,6 +33,10 @@ class JournalRepository {
     }
   }
 
+  Future<void> clear() async {
+    await _box.clear();
+  }
+
   Future<void> mergeRemote(List<FirebaseSyncDocument> documents) async {
     for (final document in documents) {
       final entry = JournalEntryModel.fromMap(document.data);

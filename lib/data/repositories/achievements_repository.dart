@@ -44,6 +44,10 @@ class AchievementsRepository {
       }) ??
       Future.value();
 
+  Future<void> clear() async {
+    await _box.clear();
+  }
+
   Future<void> mergeRemote(FirebaseSyncDocument? document) async {
     if (document == null) {
       await syncCurrent();

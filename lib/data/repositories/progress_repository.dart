@@ -182,6 +182,10 @@ class ProgressRepository {
     }
   }
 
+  Future<void> clear() async {
+    await _box.clear();
+  }
+
   Future<void> mergeRemote(List<FirebaseSyncDocument> documents) async {
     for (final document in documents) {
       final localArea = _getArea(document.id);

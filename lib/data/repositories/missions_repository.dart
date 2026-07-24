@@ -73,6 +73,10 @@ class MissionsRepository {
 
   Future<void> syncCurrent() => _syncMissions(getTodayMissions(), _today);
 
+  Future<void> clear() async {
+    await _box.clear();
+  }
+
   Future<void> mergeRemote(FirebaseSyncDocument? document) async {
     if (document == null) {
       await syncCurrent();

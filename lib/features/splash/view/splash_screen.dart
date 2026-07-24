@@ -7,6 +7,8 @@ import 'package:forja/features/auth/bloc/auth_bloc.dart';
 import 'package:forja/features/auth/router/auth_router.dart';
 import 'package:forja/features/home/router/home_router.dart';
 import 'package:forja/features/onboarding/router/onboarding_router.dart';
+import 'package:forja/data/repositories/settings_repository.dart';
+import 'package:forja/data/services/local_remote_sync_service.dart';
 import 'package:forja/shared/widgets/sword_widget.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -33,13 +35,25 @@ class _SplashScreenState extends State<SplashScreen>
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
+    Future.delayed(const Duration(milliseconds: 2200), () async {
       if (!mounted) return;
       final isAuthenticated = context.read<AuthBloc>().state.isAuthenticated;
 
       if (!isAuthenticated) {
         context.go(AuthRouter.initial);
         return;
+      }
+
+      if (widget.showOnboarding) {
+        await context.read<LocalRemoteSyncService>().syncAll();
+        if (!mounted) return;
+
+        final onboardingDone =
+            context.read<SettingsRepository>().onboardingDone;
+        if (onboardingDone) {
+          context.go(HomeRouter.initial);
+          return;
+        }
       }
 
       context.go(

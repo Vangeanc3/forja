@@ -83,5 +83,18 @@ class LocalRemoteSyncService {
     );
   }
 
+  Future<void> clearAllLocalData() async {
+    await _settings.clear();
+    await _streak.clear();
+    await _stats.clear();
+    await _achievements.clear();
+    await _missions.clear();
+    await _monkMode.clear();
+    await _weeklyChallenge.clear();
+    await _journal.clear();
+    await _progress.clear();
+    await _weeklyReport.clear();
+  }
+
   String get _today => DateTime.now().toIso8601String().substring(0, 10);
 }

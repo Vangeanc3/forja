@@ -136,6 +136,10 @@ class SettingsRepository {
       Future.value();
 
   Future<void> syncCurrent() => _sync();
+  
+  Future<void> clear() async {
+    await _box.clear();
+  }
 
   Future<void> mergeRemote(FirebaseSyncDocument? document) async {
     if (document == null) {
