@@ -15,7 +15,7 @@ class MonkModeRepository {
   bool get isActive => _box.get('is_active', defaultValue: false) as bool;
 
   List<String> get activeRestrictions =>
-      _box.get('active_restrictions', defaultValue: <String>[]) as List<String>;
+      List<String>.from(_box.get('active_restrictions', defaultValue: <String>[]) as Iterable);
 
   MonkModeModel snapshot() => MonkModeModel(
     active: isActive,

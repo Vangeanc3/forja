@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../domain/entities/progress_area_entity.dart';
 
 abstract class ProgressEvent extends Equatable {
   const ProgressEvent();
@@ -52,6 +53,7 @@ class ProgressMetricCreated extends ProgressEvent {
     required this.percent,
     this.description = '',
     this.note = '',
+    this.details = const [],
   });
 
   final String areaId;
@@ -59,9 +61,10 @@ class ProgressMetricCreated extends ProgressEvent {
   final int percent;
   final String description;
   final String note;
+  final List<MetricDetailEntity> details;
 
   @override
-  List<Object?> get props => [areaId, title, percent, description, note];
+  List<Object?> get props => [areaId, title, percent, description, note, details];
 }
 
 class ProgressMetricUpdated extends ProgressEvent {
@@ -72,6 +75,7 @@ class ProgressMetricUpdated extends ProgressEvent {
     required this.percent,
     this.description = '',
     this.note = '',
+    this.details = const [],
   });
 
   final String areaId;
@@ -80,6 +84,7 @@ class ProgressMetricUpdated extends ProgressEvent {
   final int percent;
   final String description;
   final String note;
+  final List<MetricDetailEntity> details;
 
   @override
   List<Object?> get props => [
@@ -89,6 +94,7 @@ class ProgressMetricUpdated extends ProgressEvent {
     percent,
     description,
     note,
+    details,
   ];
 }
 

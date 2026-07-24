@@ -80,6 +80,40 @@ class AuthRepository {
     }
   }
 
+  Future<AuthUserEntity> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    _ensureFirebaseAvailable();
+
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return _touchUser(result.user);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure.fromFirebase(error);
+    }
+  }
+
+  Future<AuthUserEntity> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    _ensureFirebaseAvailable();
+
+    try {
+      final result = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return _touchUser(result.user);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure.fromFirebase(error);
+    }
+  }
+
   Future<void> signOut() async {
     _ensureFirebaseAvailable();
 
@@ -191,7 +225,7 @@ class AuthFailure implements Exception {
       'configuration-not-found' =>
         'Firebase Authentication ainda não foi iniciado ou configurado neste projeto.',
       'credential-already-in-use' || 'email-already-in-use' =>
-        'Esta conta social já está vinculada a outro usuário.',
+        'Já existe uma conta vinculada a este e-mail.',
       'invalid-credential' ||
       'invalid-oauth-provider' ||
       'invalid-oauth-client-id' =>
@@ -201,6 +235,10 @@ class AuthFailure implements Exception {
       'operation-not-allowed' =>
         'Este provedor de login ainda não foi habilitado no Firebase Console.',
       'user-disabled' => 'Esta conta foi desativada.',
+      'user-not-found' => 'Nenhum usuário encontrado com este e-mail.',
+      'wrong-password' => 'Senha incorreta para este usuário.',
+      'invalid-email' => 'O formato do e-mail é inválido.',
+      'weak-password' => 'A senha informada é muito fraca.',
       _ =>
         exception.message ??
             'Não foi possível autenticar no Firebase (${exception.code}).',

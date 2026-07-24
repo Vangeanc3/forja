@@ -12,6 +12,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onStarted);
     on<AuthUserChanged>(_onUserChanged);
     on<AuthGoogleSignInRequested>(_onGoogleSignInRequested);
+    on<AuthEmailPasswordSignInRequested>(_onEmailPasswordSignInRequested);
+    on<AuthEmailPasswordSignUpRequested>(_onEmailPasswordSignUpRequested);
     on<AuthAnonymousSignInRequested>(_onAnonymousSignInRequested);
     on<AuthSignOutRequested>(_onSignOutRequested);
 
@@ -48,6 +50,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthGoogleSignInRequested event,
     Emitter<AuthState> emit,
   ) => _authenticate(emit, _repository.signInWithGoogle);
+
+  Future<void> _onEmailPasswordSignInRequested(
+    AuthEmailPasswordSignInRequested event,
+    Emitter<AuthState> emit,
+  ) => _authenticate(
+    emit,
+    () => _repository.signInWithEmailAndPassword(
+      email: event.email,
+      password: event.password,
+    ),
+  );
+
+  Future<void> _onEmailPasswordSignUpRequested(
+    AuthEmailPasswordSignUpRequested event,
+    Emitter<AuthState> emit,
+  ) => _authenticate(
+    emit,
+    () => _repository.createUserWithEmailAndPassword(
+      email: event.email,
+      password: event.password,
+    ),
+  );
 
   Future<void> _onAnonymousSignInRequested(
     AuthAnonymousSignInRequested event,

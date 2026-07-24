@@ -26,6 +26,26 @@ class AuthGoogleSignInRequested extends AuthEvent {
   const AuthGoogleSignInRequested();
 }
 
+class AuthEmailPasswordSignInRequested extends AuthEvent {
+  const AuthEmailPasswordSignInRequested(this.email, this.password);
+
+  final String email;
+  final String password;
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+class AuthEmailPasswordSignUpRequested extends AuthEvent {
+  const AuthEmailPasswordSignUpRequested(this.email, this.password);
+
+  final String email;
+  final String password;
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
 class AuthAnonymousSignInRequested extends AuthEvent {
   const AuthAnonymousSignInRequested();
 }

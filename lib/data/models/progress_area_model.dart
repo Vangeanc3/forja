@@ -32,6 +32,72 @@ class SkillCheckpointModel extends SkillCheckpointEntity {
   };
 }
 
+class MetricDetailItemModel extends MetricDetailItemEntity {
+  const MetricDetailItemModel({
+    required super.id,
+    required super.title,
+    required super.description,
+  });
+
+  factory MetricDetailItemModel.fromEntity(MetricDetailItemEntity entity) =>
+      MetricDetailItemModel(
+        id: entity.id,
+        title: entity.title,
+        description: entity.description,
+      );
+
+  factory MetricDetailItemModel.fromMap(Map<dynamic, dynamic> map) =>
+      MetricDetailItemModel(
+        id: map['id'] as String,
+        title: map['title'] as String,
+        description: map['description'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'description': description,
+      };
+}
+
+class MetricDetailModel extends MetricDetailEntity {
+  const MetricDetailModel({
+    required super.id,
+    required super.title,
+    required super.description,
+    super.items = const [],
+  });
+
+  factory MetricDetailModel.fromEntity(MetricDetailEntity entity) =>
+      MetricDetailModel(
+        id: entity.id,
+        title: entity.title,
+        description: entity.description,
+        items: entity.items.map(MetricDetailItemModel.fromEntity).toList(),
+      );
+
+  factory MetricDetailModel.fromMap(Map<dynamic, dynamic> map) {
+    final rawItems = (map['items'] as List?) ?? const [];
+    final items = rawItems
+        .map((entry) => MetricDetailItemModel.fromMap(entry as Map))
+        .toList();
+
+    return MetricDetailModel(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      description: map['description'] as String? ?? '',
+      items: items,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'items': items.map((e) => (e as MetricDetailItemModel).toMap()).toList(),
+      };
+}
+
 class ProgressMetricModel extends ProgressMetricEntity {
   const ProgressMetricModel({
     required super.id,
@@ -41,6 +107,7 @@ class ProgressMetricModel extends ProgressMetricEntity {
     required super.updatedAt,
     super.description = '',
     super.history = const [],
+    super.details = const [],
   });
 
   factory ProgressMetricModel.fromEntity(ProgressMetricEntity entity) =>
@@ -52,6 +119,7 @@ class ProgressMetricModel extends ProgressMetricEntity {
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
         history: entity.history.map(SkillCheckpointModel.fromEntity).toList(),
+        details: entity.details.map(MetricDetailModel.fromEntity).toList(),
       );
 
   factory ProgressMetricModel.fromMap(Map<dynamic, dynamic> map) {
@@ -60,6 +128,10 @@ class ProgressMetricModel extends ProgressMetricEntity {
     final rawHistory = (map['history'] as List?) ?? const [];
     final history = rawHistory
         .map((entry) => SkillCheckpointModel.fromMap(entry as Map))
+        .toList();
+    final rawDetails = (map['details'] as List?) ?? const [];
+    final details = rawDetails
+        .map((entry) => MetricDetailModel.fromMap(entry as Map))
         .toList();
 
     return ProgressMetricModel(
@@ -81,6 +153,7 @@ class ProgressMetricModel extends ProgressMetricEntity {
               ),
             ]
           : history,
+      details: details,
     );
   }
 
@@ -91,15 +164,19 @@ class ProgressMetricModel extends ProgressMetricEntity {
     int? percent,
     DateTime? updatedAt,
     List<SkillCheckpointEntity>? history,
-  }) => ProgressMetricModel(
-    id: id,
-    title: title ?? this.title,
-    description: description ?? this.description,
-    percent: percent ?? this.percent,
-    createdAt: createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    history: history ?? this.history,
-  );
+    List<MetricDetailEntity>? details,
+  }) {
+    return ProgressMetricModel(
+      id: id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      percent: percent ?? this.percent,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      history: history ?? this.history,
+      details: details ?? this.details,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -110,6 +187,9 @@ class ProgressMetricModel extends ProgressMetricEntity {
     'updatedAt': updatedAt.toIso8601String(),
     'history': history
         .map((entry) => SkillCheckpointModel.fromEntity(entry).toMap())
+        .toList(),
+    'details': details
+        .map((e) => MetricDetailModel.fromEntity(e).toMap())
         .toList(),
   };
 }

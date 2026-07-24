@@ -323,10 +323,13 @@ class _DistractionsList extends StatelessWidget {
         ..._distractions.map(
           (d) => Card(
             margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: const Icon(Icons.bolt_rounded, color: ForjaColors.ember),
-              title: Text(d),
-              onTap: () => Navigator.pop(context),
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
+                leading: const Icon(Icons.bolt_rounded, color: ForjaColors.ember),
+                title: Text(d),
+                onTap: () => Navigator.pop(context),
+              ),
             ),
           ),
         ),

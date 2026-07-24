@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
+import 'package:forja/features/tasks/view/metric_detail_view_screen.dart';
 import 'package:forja/features/tasks/bloc/progress_bloc.dart';
 import 'package:forja/features/tasks/bloc/progress_event.dart';
 import 'package:forja/features/tasks/router/tasks_router.dart';
+import 'package:forja/features/tasks/view/metric_detail_form_screen.dart';
 
 enum _AreaAction { edit, delete }
 
@@ -565,7 +567,93 @@ class _MetricCard extends StatelessWidget {
               const SizedBox(height: 12),
               _HistoryPreview(history: metric.history),
             ],
+            if (metric.details.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              _MetricDetailsList(
+                metricTitle: metric.title,
+                details: metric.details,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricDetailsList extends StatelessWidget {
+  const _MetricDetailsList({required this.metricTitle, required this.details});
+
+  final String metricTitle;
+  final List<MetricDetailEntity> details;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final totalItems = details.fold<int>(0, (sum, d) => sum + d.items.length);
+
+    return Material(
+      color: ForjaColors.ember.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => MetricDetailViewScreen(
+                metricTitle: metricTitle,
+                details: details,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: ForjaColors.ember.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.auto_stories_rounded,
+                  size: 16,
+                  color: ForjaColors.ember,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CONTEÚDO DE ESTUDO',
+                      style: text.labelSmall?.copyWith(
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.bold,
+                        color: ForjaColors.ember,
+                      ),
+                    ),
+                    Text(
+                      '${details.length} tópicos • $totalItems itens detalhados',
+                      style: text.bodySmall?.copyWith(
+                        color: ForjaColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: ForjaColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -799,14 +887,16 @@ class _Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ForjaColors.surface,
+    return Material(
+      color: ForjaColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ForjaColors.divider),
+        side: const BorderSide(color: ForjaColors.divider),
       ),
-      child: child,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
     );
   }
 }
@@ -919,6 +1009,38 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
     if (mounted) context.pop();
   }
 
+  bool _hasChanges() {
+    final area = _initialArea();
+    final initialTitle = area?.title ?? '';
+    final initialDescription = area?.description ?? '';
+    return _titleController.text.trim() != initialTitle ||
+        _descriptionController.text.trim() != initialDescription;
+  }
+
+  Future<bool?> _showDiscardDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ForjaColors.surface,
+        title: const Text('Descartar alterações?'),
+        content: const Text(
+          'Você tem alterações não salvas nesta área. Deseja realmente sair?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: ForjaColors.error),
+            child: const Text('Sair sem salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final areas = context.watch<ProgressBloc>().state.areas;
@@ -934,11 +1056,26 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: _SimpleFormAppBar(
-        title: _isEditing ? 'Editar área' : 'Nova área',
-      ),
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        if (!_hasChanges()) {
+          Navigator.of(context).pop();
+          return;
+        }
+
+        final bool shouldPop = await _showDiscardDialog() ?? false;
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: _SimpleFormAppBar(
+          title: _isEditing ? 'Editar área' : 'Nova área',
+        ),
+        body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
@@ -986,8 +1123,9 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class ProgressMetricFormScreen extends StatefulWidget {
@@ -1005,11 +1143,13 @@ class ProgressMetricFormScreen extends StatefulWidget {
       _ProgressMetricFormScreenState();
 }
 
+
 class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _noteController;
   late double _percent;
+  final List<MetricDetailEntity> _details = [];
   bool _saving = false;
 
   bool get _isEditing => widget.metricId != null;
@@ -1024,6 +1164,11 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     );
     _noteController = TextEditingController();
     _percent = (metric?.percent ?? 50).toDouble();
+
+    if (metric != null) {
+      _details.addAll(metric.details);
+    }
+
     _titleController.addListener(() => setState(() {}));
   }
 
@@ -1064,6 +1209,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
           percent: percent,
           description: description,
           note: note,
+          details: List.from(_details),
         ),
       );
     } else {
@@ -1075,11 +1221,106 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
           percent: percent,
           description: description,
           note: note,
+          details: List.from(_details),
         ),
       );
     }
 
     if (mounted) context.pop();
+  }
+
+  bool _hasChanges() {
+    final metric = _initialMetric();
+    final initialTitle = metric?.title ?? '';
+    final initialDescription = metric?.description ?? '';
+    final initialPercent = (metric?.percent ?? 50).toDouble();
+    final initialDetails = metric?.details ?? [];
+
+    if (_titleController.text.trim() != initialTitle) return true;
+    if (_descriptionController.text.trim() != initialDescription) return true;
+    if (_percent != initialPercent) return true;
+    if (_noteController.text.trim().isNotEmpty) return true;
+
+    if (_details.length != initialDetails.length) return true;
+    for (int i = 0; i < _details.length; i++) {
+      final detail = _details[i];
+      final initialDetail = initialDetails[i];
+      if (detail.title != initialDetail.title ||
+          detail.description != initialDetail.description ||
+          detail.items.length != initialDetail.items.length) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  Future<bool?> _showDiscardDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ForjaColors.surface,
+        title: const Text('Descartar alterações?'),
+        content: const Text(
+          'Você tem alterações não salvas neste indicador. Deseja realmente sair?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: ForjaColors.error),
+            child: const Text('Sair sem salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addOrEditDetail([MetricDetailEntity? detail, int? index]) async {
+    final result = await Navigator.of(context).push<MetricDetailEntity>(
+      MaterialPageRoute(
+        builder: (_) => MetricDetailFormScreen(initialDetail: detail),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        if (index != null) {
+          _details[index] = result;
+        } else {
+          _details.add(result);
+        }
+      });
+    }
+  }
+
+  Future<void> _removeDetail(int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ForjaColors.surface,
+        title: const Text('Remover tópico?'),
+        content: Text('Deseja remover o tópico "${_details[index].title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: ForjaColors.error),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _details.removeAt(index));
+    }
   }
 
   void _adjustPercent(int delta) {
@@ -1111,11 +1352,26 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: _SimpleFormAppBar(
-        title: _isEditing ? 'Editar indicador' : 'Novo indicador',
-      ),
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        if (!_hasChanges()) {
+          Navigator.of(context).pop();
+          return;
+        }
+
+        final bool shouldPop = await _showDiscardDialog() ?? false;
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: _SimpleFormAppBar(
+          title: _isEditing ? 'Editar indicador' : 'Novo indicador',
+        ),
+        body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
@@ -1215,6 +1471,137 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            _Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const _IconBadge(icon: Icons.auto_stories_rounded),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tópicos de estudo',
+                              style: text.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Adicione detalhes, conceitos e regras.',
+                              style: text.bodySmall?.copyWith(
+                                color: ForjaColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _addOrEditDetail(),
+                        icon: const Icon(Icons.add_circle_outline_rounded),
+                        color: ForjaColors.ember,
+                      ),
+                    ],
+                  ),
+                  if (_details.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _details.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final detail = _details[index];
+                        return Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: ForjaColors.divider.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            onTap: () => _addOrEditDetail(detail, index),
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: ForjaColors.ember.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.bookmark_border_rounded,
+                                color: ForjaColors.ember,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              detail.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: detail.description.isNotEmpty
+                                ? Text(
+                                    detail.description,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  )
+                                : detail.items.isNotEmpty
+                                    ? Text(
+                                        '${detail.items.length} itens cadastrados',
+                                        style: const TextStyle(fontSize: 12),
+                                      )
+                                    : null,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (detail.items.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: ForjaColors.ember,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      detail.items.length.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: () => _removeDetail(index),
+                                  icon: const Icon(
+                                    Icons.remove_circle_outline_rounded,
+                                    size: 20,
+                                  ),
+                                  color: ForjaColors.error,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: canSave ? _submit : null,
@@ -1224,8 +1611,9 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SimpleFormAppBar extends StatelessWidget implements PreferredSizeWidget {

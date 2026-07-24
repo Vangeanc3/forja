@@ -71,6 +71,7 @@ class ProgressRepository {
     required int percent,
     String description = '',
     String note = '',
+    List<MetricDetailEntity> details = const [],
   }) async {
     final area = _getArea(areaId);
     if (area == null) return;
@@ -93,6 +94,7 @@ class ProgressRepository {
           createdAt: now,
         ),
       ],
+      details: details,
     );
 
     final updatedArea = area.copyWith(
@@ -110,6 +112,7 @@ class ProgressRepository {
     required int percent,
     String description = '',
     String note = '',
+    List<MetricDetailEntity> details = const [],
   }) async {
     final area = _getArea(areaId);
     if (area == null) return;
@@ -139,6 +142,7 @@ class ProgressRepository {
         percent: normalizedPercent,
         updatedAt: now,
         history: updatedHistory,
+        details: details,
       );
     }).toList();
 
@@ -343,6 +347,7 @@ class ProgressRepository {
       createdAt: _earliest(local.createdAt, remote.createdAt),
       updatedAt: _latest(local.updatedAt, remote.updatedAt)!,
       history: _mergeHistory(local.history, remote.history),
+      details: winner.details,
     );
   }
 

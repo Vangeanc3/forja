@@ -63,6 +63,7 @@ class ProgressBloc extends Bloc<ProgressEvent, ProgressState> {
       percent: event.percent,
       description: event.description,
       note: event.note,
+      details: event.details,
     );
     emit(ProgressState(areas: _repository.getAll()));
   }
@@ -78,6 +79,7 @@ class ProgressBloc extends Bloc<ProgressEvent, ProgressState> {
       percent: event.percent,
       description: event.description,
       note: event.note,
+      details: event.details,
     );
     emit(ProgressState(areas: _repository.getAll()));
   }

@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -64,5 +61,15 @@ class DefaultFirebaseOptions {
     projectId: 'forja-flutter',
     storageBucket: 'forja-flutter.firebasestorage.app',
     iosBundleId: 'com.neograde.forja',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAwWKC8fVrECYr9hx4lUmodZlYn0bBh3Qk',
+    appId: '1:276133740162:web:63bd9a6f2db6b0e06d7e9b',
+    messagingSenderId: '276133740162',
+    projectId: 'forja-flutter',
+    authDomain: 'forja-flutter.firebaseapp.com',
+    storageBucket: 'forja-flutter.firebasestorage.app',
+    measurementId: 'G-XXXXXXXXXX',
   );
 }

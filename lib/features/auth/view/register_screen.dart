@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-
 import 'package:forja/core/theme.dart';
 import 'package:forja/shared/widgets/sword_widget.dart';
 import 'social_auth_panel.dart';
 
-class AuthScreen extends StatelessWidget {
-  const AuthScreen({super.key});
+class RegisterScreen extends StatelessWidget {
+  const RegisterScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ENTRAR'),
+        title: const Text('CRIAR CONTA'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -37,7 +36,7 @@ class AuthScreen extends StatelessWidget {
               const SizedBox(height: 48),
               const SocialAuthPanel(
                 showContainer: true,
-                forceSignUp: false,
+                forceSignUp: true,
                 showTitle: false,
               ),
             ],

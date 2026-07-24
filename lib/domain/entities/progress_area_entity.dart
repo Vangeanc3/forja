@@ -12,6 +12,32 @@ class SkillCheckpointEntity {
   final DateTime createdAt;
 }
 
+class MetricDetailItemEntity {
+  const MetricDetailItemEntity({
+    required this.id,
+    required this.title,
+    required this.description,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+}
+
+class MetricDetailEntity {
+  const MetricDetailEntity({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.items = const [],
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final List<MetricDetailItemEntity> items;
+}
+
 class ProgressMetricEntity {
   const ProgressMetricEntity({
     required this.id,
@@ -21,6 +47,7 @@ class ProgressMetricEntity {
     required this.updatedAt,
     this.description = '',
     this.history = const [],
+    this.details = const [],
   });
 
   final String id;
@@ -30,6 +57,7 @@ class ProgressMetricEntity {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<SkillCheckpointEntity> history;
+  final List<MetricDetailEntity> details;
 
   double get progress => percent / 100;
 
@@ -52,15 +80,19 @@ class ProgressMetricEntity {
     int? percent,
     DateTime? updatedAt,
     List<SkillCheckpointEntity>? history,
-  }) => ProgressMetricEntity(
-    id: id,
-    title: title ?? this.title,
-    description: description ?? this.description,
-    percent: percent ?? this.percent,
-    createdAt: createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    history: history ?? this.history,
-  );
+    List<MetricDetailEntity>? details,
+  }) {
+    return ProgressMetricEntity(
+      id: id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      percent: percent ?? this.percent,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      history: history ?? this.history,
+      details: details ?? this.details,
+    );
+  }
 }
 
 class ProgressAreaEntity {

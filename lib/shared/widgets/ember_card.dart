@@ -14,14 +14,16 @@ class EmberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: ForjaColors.surface,
+    return Material(
+      color: ForjaColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ForjaColors.divider),
+        side: const BorderSide(color: ForjaColors.divider),
       ),
-      child: child,
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
     );
   }
 }

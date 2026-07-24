@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:forja/features/onboarding/router/onboarding_router.dart';
+import 'package:forja/features/home/router/home_router.dart';
+import 'package:forja/data/repositories/settings_repository.dart';
 
 import '../../../core/theme.dart';
 import '../../../domain/entities/auth_user_entity.dart';
@@ -7,6 +11,7 @@ import '../../../shared/widgets/ember_card.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../router/auth_router.dart';
 
 class SocialAuthPanel extends StatelessWidget {
   const SocialAuthPanel({
@@ -14,11 +19,13 @@ class SocialAuthPanel extends StatelessWidget {
     this.compact = false,
     this.showContainer = true,
     this.showTitle = true,
+    this.forceSignUp,
   });
 
   final bool compact;
   final bool showContainer;
   final bool showTitle;
+  final bool? forceSignUp;
 
   @override
   Widget build(BuildContext context) {
@@ -27,13 +34,25 @@ class SocialAuthPanel extends StatelessWidget {
           previous.errorMessage != current.errorMessage ||
           previous.submissionStatus != current.submissionStatus,
       listener: (context, state) {
-        if (state.submissionStatus != AuthSubmissionStatus.failure) return;
-        final message = state.errorMessage;
-        if (message == null || message.isEmpty) return;
+        if (state.submissionStatus == AuthSubmissionStatus.failure) {
+          final message = state.errorMessage;
+          if (message == null || message.isEmpty) return;
 
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(message)));
+          return;
+        }
+
+        if (state.submissionStatus == AuthSubmissionStatus.success &&
+            state.isAuthenticated) {
+          final settings = context.read<SettingsRepository>();
+          if (settings.onboardingDone) {
+            context.go(HomeRouter.initial);
+          } else {
+            context.go(OnboardingRouter.initial);
+          }
+        }
       },
       builder: (context, state) {
         final content = state.isAuthenticated
@@ -46,6 +65,7 @@ class SocialAuthPanel extends StatelessWidget {
                 compact: compact,
                 loading: state.isLoading,
                 showTitle: showTitle,
+                forceSignUp: forceSignUp,
               );
 
         if (!showContainer) return content;
@@ -59,16 +79,40 @@ class SocialAuthPanel extends StatelessWidget {
   }
 }
 
-class _SignInActions extends StatelessWidget {
+class _SignInActions extends StatefulWidget {
   const _SignInActions({
     required this.compact,
     required this.loading,
     required this.showTitle,
+    this.forceSignUp,
   });
 
   final bool compact;
   final bool loading;
   final bool showTitle;
+  final bool? forceSignUp;
+
+  @override
+  State<_SignInActions> createState() => _SignInActionsState();
+}
+
+class _SignInActionsState extends State<_SignInActions> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  late bool _isSignUp;
+
+  @override
+  void initState() {
+    super.initState();
+    _isSignUp = widget.forceSignUp ?? false;
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,29 +122,96 @@ class _SignInActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showTitle) ...[
+        if (widget.showTitle) ...[
           Text(
-            'CONTA',
+            _isSignUp ? 'CRIAR CONTA' : 'ENTRAR',
             style: text.labelMedium?.copyWith(color: ForjaColors.textSecondary),
           ),
           const SizedBox(height: 12),
         ],
+        TextField(
+          controller: _emailController,
+          decoration: const InputDecoration(
+            labelText: 'E-mail',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _passwordController,
+          decoration: const InputDecoration(
+            labelText: 'Senha',
+            prefixIcon: Icon(Icons.lock_outline),
+          ),
+          obscureText: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: widget.loading ? null : _submit,
+          child: Text(
+            widget.loading
+                ? 'Processando...'
+                : (_isSignUp ? 'Criar Conta' : 'Entrar'),
+          ),
+        ),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: loading
+          onPressed: widget.loading
               ? null
               : () => context.read<AuthBloc>().add(
                   const AuthGoogleSignInRequested(),
                 ),
-          icon: loading
+          icon: widget.loading
               ? const SizedBox.square(
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.g_mobiledata_rounded, size: 28),
-          label: Text(loading ? 'Conectando...' : 'Entrar com Google'),
+          label: Text(widget.loading ? 'Conectando...' : 'Entrar com Google'),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: () {
+            if (widget.forceSignUp != null) {
+              if (widget.forceSignUp!) {
+                context.pushReplacement(AuthRouter.initial);
+              } else {
+                context.pushReplacement(AuthRouter.register);
+              }
+            } else {
+              setState(() => _isSignUp = !_isSignUp);
+            }
+          },
+          child: Text(
+            _isSignUp
+                ? 'Já tem uma conta? Entre aqui'
+                : 'Não tem conta? Cadastre-se',
+          ),
         ),
       ],
     );
+  }
+
+  void _submit() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha e-mail e senha')),
+      );
+      return;
+    }
+
+    if (_isSignUp) {
+      context.read<AuthBloc>().add(AuthEmailPasswordSignUpRequested(email, password));
+    } else {
+      context.read<AuthBloc>().add(AuthEmailPasswordSignInRequested(email, password));
+    }
   }
 }
 

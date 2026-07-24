@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:forja/core/theme.dart';
+import 'package:forja/features/auth/bloc/auth_bloc.dart';
+import 'package:forja/features/auth/router/auth_router.dart';
 import 'package:forja/features/home/router/home_router.dart';
 import 'package:forja/features/onboarding/router/onboarding_router.dart';
 import 'package:forja/shared/widgets/sword_widget.dart';
@@ -32,6 +35,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     Future.delayed(const Duration(milliseconds: 2200), () {
       if (!mounted) return;
+      final isAuthenticated = context.read<AuthBloc>().state.isAuthenticated;
+
+      if (!isAuthenticated) {
+        context.go(AuthRouter.initial);
+        return;
+      }
+
       context.go(
         widget.showOnboarding ? OnboardingRouter.initial : HomeRouter.initial,
       );

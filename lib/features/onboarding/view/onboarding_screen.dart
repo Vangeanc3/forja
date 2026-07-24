@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:forja/core/constants.dart';
 import 'package:forja/core/notification_service.dart';
 import 'package:forja/core/theme.dart';
-import 'package:forja/features/auth/view/social_auth_panel.dart';
 import 'package:forja/features/home/router/home_router.dart';
 import 'package:forja/features/monk_mode/router/monk_mode_router.dart';
 import 'package:forja/features/settings/bloc/settings_bloc.dart';
@@ -195,14 +194,11 @@ class _WelcomeSlide extends StatelessWidget {
             'O lugar onde homens são feitos.',
             style: text.bodyLarge?.copyWith(color: ForjaColors.textSecondary),
           ),
-          const SizedBox(height: 24),
-          const SocialAuthPanel(
-            compact: true,
-            showContainer: false,
-            showTitle: false,
-          ),
           const Spacer(),
-          FilledButton(onPressed: onNext, child: const Text('COMEÇAR')),
+          FilledButton(
+            onPressed: onNext,
+            child: const Text('COMEÇAR'),
+          ),
         ],
       ),
     );

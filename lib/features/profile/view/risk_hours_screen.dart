@@ -55,11 +55,34 @@ class _RiskHoursScreenState extends State<RiskHoursScreen> {
     _save();
   }
 
-  void _removeWindow(int index) {
-    setState(() {
-      _riskHours.removeAt(index);
-    });
-    _save();
+  Future<void> _removeWindow(int index) async {
+    final window = _riskHours[index];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ForjaColors.surface,
+        title: const Text('Remover horário?'),
+        content: Text('Deseja remover a janela de risco "$window"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: ForjaColors.error),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        _riskHours.removeAt(index);
+      });
+      _save();
+    }
   }
 
   void _save() {
@@ -103,21 +126,24 @@ class _RiskHoursScreenState extends State<RiskHoursScreen> {
                   return Card(
                     color: ForjaColors.surface,
                     margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.warning_amber_rounded,
-                        color: ForjaColors.ember,
-                      ),
-                      title: Text(
-                        _riskHours[index],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: ForjaColors.ember,
                         ),
-                        onPressed: () => _removeWindow(index),
+                        title: Text(
+                          _riskHours[index],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.redAccent,
+                          ),
+                          onPressed: () => _removeWindow(index),
+                        ),
                       ),
                     ),
                   );

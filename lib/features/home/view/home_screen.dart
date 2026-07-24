@@ -266,7 +266,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onStatsTap;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 50);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 74);
 
   @override
   Widget build(BuildContext context) {

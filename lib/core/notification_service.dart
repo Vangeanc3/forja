@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -28,7 +30,14 @@ abstract final class NotificationService {
 
   static final _plugin = FlutterLocalNotificationsPlugin();
 
-  static const _iosDetails = NotificationDetails(
+  static const _notificationDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'forja_notifications',
+      'Notificações Forja',
+      channelDescription: 'Canal principal de notificações do Forja',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
     iOS: DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: false,
@@ -49,6 +58,7 @@ abstract final class NotificationService {
 
     await _plugin.initialize(
       const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
@@ -61,6 +71,15 @@ abstract final class NotificationService {
   // ── Permissão ─────────────────────────────────────────────────────
 
   static Future<bool> requestPermission() async {
+    if (kIsWeb) return true; // Web notifications are requested differently or ignored here
+    if (Platform.isAndroid) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return await android?.requestNotificationsPermission() ?? false;
+    }
+
     final ios = _plugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
@@ -130,7 +149,7 @@ abstract final class NotificationService {
             'Forja',
             riskMessages[idOffset % riskMessages.length],
             scheduledDate,
-            _iosDetails,
+            _notificationDetails,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
@@ -173,7 +192,7 @@ abstract final class NotificationService {
       'Forja',
       'Seu relatório semanal está pronto',
       scheduledDate,
-      _iosDetails,
+      _notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
@@ -207,7 +226,7 @@ abstract final class NotificationService {
         'Forja',
         msg,
         scheduled,
-        _iosDetails,
+        _notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -226,7 +245,7 @@ abstract final class NotificationService {
       'Forja',
       'Sua espada está esfriando. Volte à forja.',
       scheduled,
-      _iosDetails,
+      _notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
