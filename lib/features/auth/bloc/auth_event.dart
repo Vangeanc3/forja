@@ -46,6 +46,16 @@ class AuthEmailPasswordSignUpRequested extends AuthEvent {
   List<Object?> get props => [email, password];
 }
 
+class AuthLinkEmailPasswordRequested extends AuthEvent {
+  const AuthLinkEmailPasswordRequested(this.email, this.password);
+
+  final String email;
+  final String password;
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
 class AuthAnonymousSignInRequested extends AuthEvent {
   const AuthAnonymousSignInRequested();
 }

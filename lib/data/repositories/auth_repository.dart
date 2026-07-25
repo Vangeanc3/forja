@@ -34,7 +34,7 @@ class AuthRepository {
       return Stream<AuthUserEntity?>.value(null);
     }
 
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _auth.userChanges().asyncMap((user) async {
       if (user == null) return null;
       return _touchUser(user);
     });
@@ -55,6 +55,26 @@ class AuthRepository {
     _ensureFirebaseAvailable();
 
     try {
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider();
+        provider.setCustomParameters({'prompt': 'select_account'});
+
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          try {
+            final result = await currentUser.linkWithPopup(provider);
+            return _touchUser(result.user);
+          } on FirebaseAuthException catch (error) {
+            if (!_shouldFallbackToSignIn(error.code)) {
+              throw AuthFailure.fromFirebase(error);
+            }
+          }
+        }
+
+        final result = await _auth.signInWithPopup(provider);
+        return _touchUser(result.user);
+      }
+
       await _ensureGoogleInitialized();
 
       if (!GoogleSignIn.instance.supportsAuthenticate()) {
@@ -104,11 +124,11 @@ class AuthRepository {
     _ensureFirebaseAvailable();
 
     try {
-      final result = await _auth.createUserWithEmailAndPassword(
+      final credential = EmailAuthProvider.credential(
         email: email,
         password: password,
       );
-      return _touchUser(result.user);
+      return _signInOrLink(credential);
     } on FirebaseAuthException catch (error) {
       throw AuthFailure.fromFirebase(error);
     }
@@ -117,13 +137,15 @@ class AuthRepository {
   Future<void> signOut() async {
     _ensureFirebaseAvailable();
 
-    try {
-      await _ensureGoogleInitialized();
-      await GoogleSignIn.instance.signOut();
-    } on Object catch (error, stackTrace) {
-      debugPrint('Google sign out skipped: $error');
-      if (kDebugMode) {
-        debugPrintStack(stackTrace: stackTrace);
+    if (!kIsWeb) {
+      try {
+        await _ensureGoogleInitialized();
+        await GoogleSignIn.instance.signOut();
+      } on Object catch (error, stackTrace) {
+        debugPrint('Google sign out skipped: $error');
+        if (kDebugMode) {
+          debugPrintStack(stackTrace: stackTrace);
+        }
       }
     }
 
@@ -133,7 +155,7 @@ class AuthRepository {
   Future<AuthUserEntity> _signInOrLink(AuthCredential credential) async {
     final currentUser = _auth.currentUser;
 
-    if (currentUser != null && currentUser.isAnonymous) {
+    if (currentUser != null) {
       try {
         final result = await currentUser.linkWithCredential(credential);
         return _touchUser(result.user);
@@ -141,11 +163,35 @@ class AuthRepository {
         if (!_shouldFallbackToSignIn(error.code)) {
           throw AuthFailure.fromFirebase(error);
         }
+        // Se já está vinculado ou algo similar, apenas prossegue para login normal
+        // se não estiver logado, ou ignora se já estiver logado com esse mesmo cara.
       }
     }
 
     final result = await _auth.signInWithCredential(credential);
     return _touchUser(result.user);
+  }
+
+  Future<AuthUserEntity> linkEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    _ensureFirebaseAvailable();
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw const AuthFailure('Você precisa estar logado para vincular um e-mail.');
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      final result = await currentUser.linkWithCredential(credential);
+      return _touchUser(result.user);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure.fromFirebase(error);
+    }
   }
 
   Future<AuthUserEntity> _touchUser(User? user) async {

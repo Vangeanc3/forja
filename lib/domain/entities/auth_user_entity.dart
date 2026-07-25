@@ -17,12 +17,17 @@ class AuthUserEntity extends Equatable {
   final bool isAnonymous;
   final List<String> providerIds;
 
-  bool get hasSocialProvider => providerIds.contains('google.com');
+  bool get isGuest => isAnonymous && providerIds.isEmpty;
+
+  bool get hasGoogleProvider => providerIds.contains('google.com');
+  bool get hasPasswordProvider => providerIds.contains('password');
 
   String get providerLabel {
-    if (providerIds.contains('google.com')) return 'Google';
-    if (isAnonymous) return 'Convidado';
-    return 'Firebase';
+    final List<String> labels = [];
+    if (hasGoogleProvider) labels.add('Google');
+    if (hasPasswordProvider) labels.add('E-mail');
+    if (isAnonymous && labels.isEmpty) return 'Convidado';
+    return labels.isEmpty ? 'Firebase' : labels.join(' + ');
   }
 
   String get displayLabel {
