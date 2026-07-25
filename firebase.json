@@ -36,7 +36,7 @@
     }
   },
   "hosting": {
-    "public": "forja-flutter",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
