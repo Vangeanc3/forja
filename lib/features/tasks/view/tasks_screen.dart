@@ -367,6 +367,8 @@ class _AreaCard extends StatelessWidget {
               Text(
                 area.description,
                 style: text.bodyMedium?.copyWith(height: 1.35),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
             const SizedBox(height: 16),
@@ -544,6 +546,8 @@ class _MetricCard extends StatelessWidget {
               Text(
                 metric.description,
                 style: text.bodyMedium?.copyWith(height: 1.35),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
             const SizedBox(height: 16),
@@ -988,7 +992,7 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool popOnSuccess = true}) async {
     final title = _titleController.text.trim();
     if (title.isEmpty || _saving) return;
 
@@ -1006,7 +1010,11 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
       );
     }
 
-    if (mounted) context.pop();
+    if (popOnSuccess && mounted) {
+      context.pop();
+    } else {
+      setState(() => _saving = false);
+    }
   }
 
   bool _hasChanges() {
@@ -1103,9 +1111,8 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
                   TextField(
                     controller: _descriptionController,
                     minLines: 4,
-                    maxLines: 8,
+                    maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
-                    inputFormatters: [LengthLimitingTextInputFormatter(280)],
                     decoration: const InputDecoration(
                       labelText: 'Descrição',
                       hintText: 'Objetivo, rotina, prazo ou contexto',
@@ -1191,7 +1198,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool popOnSuccess = true}) async {
     final title = _titleController.text.trim();
     if (title.isEmpty || _saving) return;
 
@@ -1226,7 +1233,11 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
       );
     }
 
-    if (mounted) context.pop();
+    if (popOnSuccess && mounted) {
+      context.pop();
+    } else {
+      setState(() => _saving = false);
+    }
   }
 
   bool _hasChanges() {
@@ -1294,6 +1305,10 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
           _details.add(result);
         }
       });
+
+      if (_isEditing && mounted) {
+        _submit(popOnSuccess: false);
+      }
     }
   }
 
@@ -1320,11 +1335,29 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
 
     if (confirmed == true && mounted) {
       setState(() => _details.removeAt(index));
+
+      if (_isEditing && mounted) {
+        _submit(popOnSuccess: false);
+      }
     }
   }
 
   void _adjustPercent(int delta) {
     setState(() => _percent = (_percent + delta).clamp(0, 100).toDouble());
+  }
+
+  void _onReorderDetails(int oldIndex, int newIndex) {
+    setState(() {
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final MetricDetailEntity item = _details.removeAt(oldIndex);
+      _details.insert(newIndex, item);
+    });
+
+    if (_isEditing && mounted) {
+      _submit(popOnSuccess: false);
+    }
   }
 
   @override
@@ -1398,9 +1431,8 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                   TextField(
                     controller: _descriptionController,
                     minLines: 3,
-                    maxLines: 6,
+                    maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
-                    inputFormatters: [LengthLimitingTextInputFormatter(240)],
                     decoration: const InputDecoration(
                       labelText: 'Descrição',
                       hintText: 'O que você quer medir nessa frente',
@@ -1459,9 +1491,8 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                   TextField(
                     controller: _noteController,
                     minLines: 3,
-                    maxLines: 5,
+                    maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
-                    inputFormatters: [LengthLimitingTextInputFormatter(180)],
                     decoration: const InputDecoration(
                       labelText: 'Observação da avaliação',
                       hintText:
@@ -1508,14 +1539,15 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                   ),
                   if (_details.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    ListView.separated(
+                    ReorderableListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _details.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      onReorder: _onReorderDetails,
                       itemBuilder: (context, index) {
                         final detail = _details[index];
                         return Material(
+                          key: ValueKey(detail.id),
                           color: Colors.transparent,
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -1542,26 +1574,50 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                                 size: 20,
                               ),
                             ),
-                            title: Text(
-                              detail.title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            title: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: ForjaColors.ember.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: ForjaColors.ember.withValues(alpha: 0.5),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    detail.type.label.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: ForjaColors.ember,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    detail.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            subtitle: detail.description.isNotEmpty
+                            subtitle: detail.items.isNotEmpty
                                 ? Text(
-                                    detail.description,
+                                    '${detail.items.length} sub-itens cadastrados',
+                                    style: const TextStyle(fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12),
                                   )
-                                : detail.items.isNotEmpty
-                                    ? Text(
-                                        '${detail.items.length} itens cadastrados',
-                                        style: const TextStyle(fontSize: 12),
-                                      )
-                                    : null,
+                                : null,
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -1591,6 +1647,11 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                                     size: 20,
                                   ),
                                   color: ForjaColors.error,
+                                ),
+                                const Icon(
+                                  Icons.drag_indicator_rounded,
+                                  color: ForjaColors.textSecondary,
+                                  size: 20,
                                 ),
                               ],
                             ),

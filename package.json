@@ -1,0 +1,21 @@
+{
+  "name": "forja",
+  "version": "1.0.0",
+  "description": "App de disciplina e foco - Projeto Flutter",
+  "main": "lib/main.dart",
+  "scripts": {
+    "dev": "flutter run",
+    "dev:web": "flutter run -d chrome",
+    "build": "flutter build web",
+    "clean": "flutter clean",
+    "get": "flutter pub get",
+    "test": "flutter test"
+  },
+  "keywords": [
+    "flutter",
+    "mobile",
+    "web"
+  ],
+  "author": "",
+  "license": "ISC"
+}

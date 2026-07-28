@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
-import 'package:forja/features/tasks/view/metric_detail_item_form_screen.dart';
 
 class MetricDetailFormScreen extends StatefulWidget {
   const MetricDetailFormScreen({
@@ -18,13 +17,15 @@ class MetricDetailFormScreen extends StatefulWidget {
 class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  final List<MetricDetailItemEntity> _items = [];
+  late MetricDetailType _type;
+  final List<MetricDetailEntity> _items = [];
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialDetail?.title ?? '');
     _descriptionController = TextEditingController(text: widget.initialDetail?.description ?? '');
+    _type = widget.initialDetail?.type ?? MetricDetailType.topic;
     
     if (widget.initialDetail != null) {
       _items.addAll(widget.initialDetail!.items);
@@ -41,9 +42,9 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   Future<void> _addOrEditItem([int? index]) async {
     final initialItem = index != null ? _items[index] : null;
     
-    final result = await Navigator.of(context).push<MetricDetailItemEntity>(
+    final result = await Navigator.of(context).push<MetricDetailEntity>(
       MaterialPageRoute(
-        builder: (context) => MetricDetailItemFormScreen(initialItem: initialItem),
+        builder: (context) => MetricDetailFormScreen(initialDetail: initialItem),
       ),
     );
 
@@ -87,20 +88,35 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
     }
   }
 
+  void _onReorderItems(int oldIndex, int newIndex) {
+    setState(() {
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final item = _items.removeAt(oldIndex);
+      _items.insert(newIndex, item);
+    });
+  }
+
   bool _hasChanges() {
     final initialTitle = widget.initialDetail?.title ?? '';
     final initialDescription = widget.initialDetail?.description ?? '';
+    final initialType = widget.initialDetail?.type ?? MetricDetailType.topic;
     final initialItems = widget.initialDetail?.items ?? [];
 
     if (_titleController.text.trim() != initialTitle) return true;
     if (_descriptionController.text.trim() != initialDescription) return true;
+    if (_type != initialType) return true;
 
     if (_items.length != initialItems.length) return true;
     for (int i = 0; i < _items.length; i++) {
       final item = _items[i];
       final initialItem = initialItems[i];
-      if (item.title != initialItem.title ||
-          item.description != initialItem.description) {
+      if (item.id != initialItem.id ||
+          item.title != initialItem.title ||
+          item.description != initialItem.description ||
+          item.type != initialItem.type ||
+          item.items.length != initialItem.items.length) {
         return true;
       }
     }
@@ -145,6 +161,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
       id: widget.initialDetail?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
       description: _descriptionController.text.trim(),
+      type: _type,
       items: List.from(_items),
     );
 
@@ -202,10 +219,28 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          DropdownButtonFormField<MetricDetailType>(
+            value: _type,
+            decoration: const InputDecoration(
+              labelText: 'Tipo do Item',
+            ),
+            items: MetricDetailType.values.map((type) {
+              return DropdownMenuItem(
+                value: type,
+                child: Text(type.label),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _type = value);
+              }
+            },
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _titleController,
             decoration: const InputDecoration(
-              labelText: 'Nome do Tópico',
+              labelText: 'Nome / Título',
               hintText: 'Ex: Prisão Preventiva, Crase, etc.',
             ),
             textCapitalization: TextCapitalization.sentences,
@@ -218,7 +253,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
               hintText: 'Resumo sobre o que é este tópico',
             ),
             minLines: 2,
-            maxLines: 4,
+            maxLines: null,
             textCapitalization: TextCapitalization.sentences,
           ),
           const SizedBox(height: 32),
@@ -257,14 +292,21 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
           if (_items.isEmpty)
             _EmptyState(onAdd: () => _addOrEditItem())
           else
-            ...List.generate(_items.length, (index) {
-              final item = _items[index];
-              return _ItemCard(
-                item: item,
-                onTap: () => _addOrEditItem(index),
-                onRemove: () => _removeItem(index),
-              );
-            }),
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _items.length,
+              onReorder: _onReorderItems,
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                return _ItemCard(
+                  key: ValueKey(item.id),
+                  item: item,
+                  onTap: () => _addOrEditItem(index),
+                  onRemove: () => _removeItem(index),
+                );
+              },
+            ),
         ],
       ),
     ),
@@ -277,9 +319,10 @@ class _ItemCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.onRemove,
+    super.key,
   });
 
-  final MetricDetailItemEntity item;
+  final MetricDetailEntity item;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -299,40 +342,49 @@ class _ItemCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.type.label.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: ForjaColors.ember,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
                         item.title,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: onRemove,
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      color: ForjaColors.error,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-                if (item.description.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: ForjaColors.textSecondary,
-                    ),
+                      if (item.items.isNotEmpty)
+                        Text(
+                          '${item.items.length} sub-itens',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ForjaColors.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
+                ),
+                IconButton(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  color: ForjaColors.error,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const Icon(
+                  Icons.drag_indicator_rounded,
+                  color: ForjaColors.textSecondary,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -360,13 +412,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Nenhum item detalhado ainda.',
+              'Nenhum sub-item ainda.',
               style: TextStyle(color: ForjaColors.textSecondary),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: onAdd,
-              child: const Text('ADICIONAR ITEM'),
+              child: const Text('ADICIONAR SUB-ITEM'),
             ),
           ],
         ),

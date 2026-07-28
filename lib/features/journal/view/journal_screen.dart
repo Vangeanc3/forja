@@ -87,7 +87,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _controller,
-                    maxLines: 4,
+                    minLines: 4,
+                    maxLines: null,
                     decoration: InputDecoration(
                       hintText: 'Sua resposta...',
                       filled: true,

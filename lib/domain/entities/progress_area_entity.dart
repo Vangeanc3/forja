@@ -12,16 +12,17 @@ class SkillCheckpointEntity {
   final DateTime createdAt;
 }
 
-class MetricDetailItemEntity {
-  const MetricDetailItemEntity({
-    required this.id,
-    required this.title,
-    required this.description,
-  });
+enum MetricDetailType {
+  topic('Tópico'),
+  concept('Conceito'),
+  rule('Regra'),
+  example('Exemplo'),
+  note('Observação'),
+  subtopic('Sub-tópico'),
+  other('Outro');
 
-  final String id;
-  final String title;
-  final String description;
+  const MetricDetailType(this.label);
+  final String label;
 }
 
 class MetricDetailEntity {
@@ -29,13 +30,30 @@ class MetricDetailEntity {
     required this.id,
     required this.title,
     required this.description,
+    this.type = MetricDetailType.topic,
     this.items = const [],
   });
 
   final String id;
   final String title;
   final String description;
-  final List<MetricDetailItemEntity> items;
+  final MetricDetailType type;
+  final List<MetricDetailEntity> items;
+
+  MetricDetailEntity copyWith({
+    String? title,
+    String? description,
+    MetricDetailType? type,
+    List<MetricDetailEntity>? items,
+  }) {
+    return MetricDetailEntity(
+      id: id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      items: items ?? this.items,
+    );
+  }
 }
 
 class ProgressMetricEntity {
