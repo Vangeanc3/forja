@@ -7,7 +7,7 @@ import 'journal_state.dart';
 class JournalBloc extends Bloc<JournalEvent, JournalState> {
   JournalBloc(this._repository) : super(_snapshotFrom(_repository)) {
     on<JournalRefreshed>(_onRefreshed);
-    on<JournalEntryAdded>(_onEntryAdded);
+    on<JournalTodayEntrySaved>(_onTodayEntrySaved);
   }
 
   final JournalRepository _repository;
@@ -16,17 +16,22 @@ class JournalBloc extends Bloc<JournalEvent, JournalState> {
       JournalState(
         entries: repository.getAll(),
         hasEntryToday: repository.hasEntryToday(),
+        todayEntry: repository.getTodayEntry(),
       );
 
   void _onRefreshed(JournalRefreshed event, Emitter<JournalState> emit) {
     emit(_snapshotFrom(_repository));
   }
 
-  Future<void> _onEntryAdded(
-    JournalEntryAdded event,
+  Future<void> _onTodayEntrySaved(
+    JournalTodayEntrySaved event,
     Emitter<JournalState> emit,
   ) async {
-    await _repository.addEntry(event.content);
+    await _repository.saveTodayEntry(
+      question: event.question,
+      answer: event.answer,
+      extra: event.extra,
+    );
     emit(_snapshotFrom(_repository));
   }
 }

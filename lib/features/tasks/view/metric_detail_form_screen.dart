@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
+import 'package:forja/shared/widgets/formatted_text.dart';
 
 class MetricDetailFormScreen extends StatefulWidget {
-  const MetricDetailFormScreen({
-    super.key,
-    this.initialDetail,
-  });
+  const MetricDetailFormScreen({super.key, this.initialDetail});
 
   final MetricDetailEntity? initialDetail;
 
@@ -23,10 +21,14 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.initialDetail?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.initialDetail?.description ?? '');
+    _titleController = TextEditingController(
+      text: widget.initialDetail?.title ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.initialDetail?.description ?? '',
+    );
     _type = widget.initialDetail?.type ?? MetricDetailType.topic;
-    
+
     if (widget.initialDetail != null) {
       _items.addAll(widget.initialDetail!.items);
     }
@@ -41,10 +43,11 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
 
   Future<void> _addOrEditItem([int? index]) async {
     final initialItem = index != null ? _items[index] : null;
-    
+
     final result = await Navigator.of(context).push<MetricDetailEntity>(
       MaterialPageRoute(
-        builder: (context) => MetricDetailFormScreen(initialDetail: initialItem),
+        builder: (context) =>
+            MetricDetailFormScreen(initialDetail: initialItem),
       ),
     );
 
@@ -158,7 +161,9 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
     }
 
     final detail = MetricDetailEntity(
-      id: widget.initialDetail?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          widget.initialDetail?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
       description: _descriptionController.text.trim(),
       type: _type,
@@ -189,129 +194,122 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.initialDetail == null ? 'Novo Tópico' : 'Editar Tópico'),
+          title: Text(
+            widget.initialDetail == null ? 'Novo Tópico' : 'Editar Tópico',
+          ),
           leading: IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.close),
           ),
           actions: [
-          TextButton(
-            onPressed: _save,
-            child: const Text(
-              'PRONTO',
-              style: TextStyle(
-                color: ForjaColors.ember,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'INFORMAÇÕES DO TÓPICO',
-            style: text.labelSmall?.copyWith(
-              color: ForjaColors.ember,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<MetricDetailType>(
-            value: _type,
-            decoration: const InputDecoration(
-              labelText: 'Tipo do Item',
-            ),
-            items: MetricDetailType.values.map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(type.label),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _type = value);
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: 'Nome / Título',
-              hintText: 'Ex: Prisão Preventiva, Crase, etc.',
-            ),
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Breve explicação geral',
-              hintText: 'Resumo sobre o que é este tópico',
-            ),
-            minLines: 2,
-            maxLines: null,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CONTEÚDO DETALHADO',
-                      style: text.labelSmall?.copyWith(
-                        color: ForjaColors.ember,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Adicione conceitos, regras ou observações.',
-                      style: text.bodySmall?.copyWith(
-                        color: ForjaColors.textSecondary,
-                      ),
-                    ),
-                  ],
+            TextButton(
+              onPressed: _save,
+              child: const Text(
+                'PRONTO',
+                style: TextStyle(
+                  color: ForjaColors.ember,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              IconButton(
-                onPressed: () => _addOrEditItem(),
-                icon: const Icon(Icons.add_circle_outline_rounded),
+            ),
+          ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'INFORMAÇÕES DO TÓPICO',
+              style: text.labelSmall?.copyWith(
                 color: ForjaColors.ember,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_items.isEmpty)
-            _EmptyState(onAdd: () => _addOrEditItem())
-          else
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _items.length,
-              onReorder: _onReorderItems,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return _ItemCard(
-                  key: ValueKey(item.id),
-                  item: item,
-                  onTap: () => _addOrEditItem(index),
-                  onRemove: () => _removeItem(index),
-                );
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<MetricDetailType>(
+              initialValue: _type,
+              decoration: const InputDecoration(labelText: 'Tipo do Item'),
+              items: MetricDetailType.values.map((type) {
+                return DropdownMenuItem(value: type, child: Text(type.label));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _type = value);
+                }
               },
             ),
-        ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Nome / Título',
+                hintText: 'Ex: Prisão Preventiva, Crase, etc.',
+              ),
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 12),
+            FormattedTextField(
+              controller: _descriptionController,
+              labelText: 'Breve explicação geral',
+              hintText: 'Resumo sobre o que é este tópico',
+              minLines: 2,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CONTEÚDO DETALHADO',
+                        style: text.labelSmall?.copyWith(
+                          color: ForjaColors.ember,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Adicione conceitos, regras ou observações.',
+                        style: text.bodySmall?.copyWith(
+                          color: ForjaColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _addOrEditItem(),
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  color: ForjaColors.ember,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_items.isEmpty)
+              _EmptyState(onAdd: () => _addOrEditItem())
+            else
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _items.length,
+                onReorder: _onReorderItems,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return _ItemCard(
+                    key: ValueKey(item.id),
+                    item: item,
+                    onTap: () => _addOrEditItem(index),
+                    onRemove: () => _removeItem(index),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _ItemCard extends StatelessWidget {

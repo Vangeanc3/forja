@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
-import 'package:forja/features/tasks/view/metric_detail_view_screen.dart';
 import 'package:forja/features/tasks/bloc/progress_bloc.dart';
 import 'package:forja/features/tasks/bloc/progress_event.dart';
 import 'package:forja/features/tasks/router/tasks_router.dart';
 import 'package:forja/features/tasks/view/metric_detail_form_screen.dart';
+import 'package:forja/features/tasks/view/metric_detail_view_screen.dart';
+import 'package:forja/shared/widgets/formatted_text.dart';
 
 enum _AreaAction { edit, delete }
 
@@ -433,9 +433,9 @@ class _AreaDetailHeader extends StatelessWidget {
           ),
           if (area.description.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
-              area.description,
-              style: text.bodyMedium?.copyWith(height: 1.35),
+            FormattedText(
+              data: area.description,
+              style: text.bodyMedium?.copyWith(height: 1.4),
             ),
           ],
           const SizedBox(height: 14),
@@ -543,11 +543,9 @@ class _MetricCard extends StatelessWidget {
             ),
             if (metric.description.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(
-                metric.description,
-                style: text.bodyMedium?.copyWith(height: 1.35),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              FormattedText(
+                data: metric.description,
+                style: text.bodyMedium?.copyWith(height: 1.4),
               ),
             ],
             const SizedBox(height: 16),
@@ -897,10 +895,7 @@ class _Panel extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: ForjaColors.divider),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
   }
 }
@@ -1084,55 +1079,51 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
           title: _isEditing ? 'Editar área' : 'Nova área',
         ),
         body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            _Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _FormHeader(
-                    icon: Icons.track_changes_rounded,
-                    title: 'Área',
-                    subtitle:
-                        'Exemplo: Curso PC/PA, academia, sono, alimentação.',
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _titleController,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome da área',
-                      hintText: 'Curso PC/PA, Academia, Sono',
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _Panel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _FormHeader(
+                      icon: Icons.track_changes_rounded,
+                      title: 'Área',
+                      subtitle:
+                          'Exemplo: Curso PC/PA, academia, sono, alimentação.',
                     ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _descriptionController,
-                    minLines: 4,
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _titleController,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome da área',
+                        hintText: 'Curso PC/PA, Academia, Sono',
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 14),
+                    FormattedTextField(
+                      controller: _descriptionController,
+                      minLines: 4,
                       labelText: 'Descrição',
                       hintText: 'Objetivo, rotina, prazo ou contexto',
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: canSave ? _submit : null,
-              icon: const Icon(Icons.save_outlined),
-              label: Text(_saving ? 'SALVANDO...' : 'SALVAR ÁREA'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: canSave ? _submit : null,
+                icon: const Icon(Icons.save_outlined),
+                label: Text(_saving ? 'SALVANDO...' : 'SALVAR ÁREA'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class ProgressMetricFormScreen extends StatefulWidget {
@@ -1149,7 +1140,6 @@ class ProgressMetricFormScreen extends StatefulWidget {
   State<ProgressMetricFormScreen> createState() =>
       _ProgressMetricFormScreenState();
 }
-
 
 class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
   late final TextEditingController _titleController;
@@ -1290,7 +1280,10 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     );
   }
 
-  Future<void> _addOrEditDetail([MetricDetailEntity? detail, int? index]) async {
+  Future<void> _addOrEditDetail([
+    MetricDetailEntity? detail,
+    int? index,
+  ]) async {
     final result = await Navigator.of(context).push<MetricDetailEntity>(
       MaterialPageRoute(
         builder: (_) => MetricDetailFormScreen(initialDetail: detail),
@@ -1405,276 +1398,276 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
           title: _isEditing ? 'Editar indicador' : 'Novo indicador',
         ),
         body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            _Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _FormHeader(
-                    icon: Icons.speed_rounded,
-                    title: area.title,
-                    subtitle: 'Cadastre um indicador e seu nível atual.',
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _titleController,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Indicador',
-                      hintText: 'Língua Portuguesa, Força, Sono profundo',
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _Panel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _FormHeader(
+                      icon: Icons.speed_rounded,
+                      title: area.title,
+                      subtitle: 'Cadastre um indicador e seu nível atual.',
                     ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _descriptionController,
-                    minLines: 3,
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _titleController,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Indicador',
+                        hintText: 'Língua Portuguesa, Força, Sono profundo',
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 14),
+                    FormattedTextField(
+                      controller: _descriptionController,
+                      minLines: 3,
                       labelText: 'Descrição',
                       hintText: 'O que você quer medir nessa frente',
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Text('Nível atual', style: text.labelMedium),
-                      const Spacer(),
-                      Text(
-                        '$percent%',
-                        style: text.headlineSmall?.copyWith(
-                          color: ForjaColors.ember,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: _percent,
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    label: '$percent%',
-                    activeColor: ForjaColors.ember,
-                    inactiveColor: ForjaColors.divider,
-                    onChanged: (value) => setState(() => _percent = value),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _adjustPercent(-5),
-                          icon: const Icon(Icons.remove_rounded),
-                          label: const Text('5%'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 44),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        Text('Nível atual', style: text.labelMedium),
+                        const Spacer(),
+                        Text(
+                          '$percent%',
+                          style: text.headlineSmall?.copyWith(
+                            color: ForjaColors.ember,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _adjustPercent(5),
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('5%'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 44),
+                      ],
+                    ),
+                    Slider(
+                      value: _percent,
+                      min: 0,
+                      max: 100,
+                      divisions: 20,
+                      label: '$percent%',
+                      activeColor: ForjaColors.ember,
+                      inactiveColor: ForjaColors.divider,
+                      onChanged: (value) => setState(() => _percent = value),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _adjustPercent(-5),
+                            icon: const Icon(Icons.remove_rounded),
+                            label: const Text('5%'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _noteController,
-                    minLines: 3,
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _adjustPercent(5),
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('5%'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    FormattedTextField(
+                      controller: _noteController,
+                      minLines: 3,
                       labelText: 'Observação da avaliação',
                       hintText:
                           'Ex: subi de 70% para 80% após revisar pontos fracos',
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const _IconBadge(icon: Icons.auto_stories_rounded),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tópicos de estudo',
-                              style: text.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+              const SizedBox(height: 16),
+              _Panel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const _IconBadge(icon: Icons.auto_stories_rounded),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tópicos de estudo',
+                                style: text.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Adicione detalhes, conceitos e regras.',
-                              style: text.bodySmall?.copyWith(
-                                color: ForjaColors.textSecondary,
+                              Text(
+                                'Adicione detalhes, conceitos e regras.',
+                                style: text.bodySmall?.copyWith(
+                                  color: ForjaColors.textSecondary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _addOrEditDetail(),
-                        icon: const Icon(Icons.add_circle_outline_rounded),
-                        color: ForjaColors.ember,
-                      ),
-                    ],
-                  ),
-                  if (_details.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    ReorderableListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _details.length,
-                      onReorder: _onReorderDetails,
-                      itemBuilder: (context, index) {
-                        final detail = _details[index];
-                        return Material(
-                          key: ValueKey(detail.id),
-                          color: Colors.transparent,
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: ForjaColors.divider.withValues(alpha: 0.5),
+                        IconButton(
+                          onPressed: () => _addOrEditDetail(),
+                          icon: const Icon(Icons.add_circle_outline_rounded),
+                          color: ForjaColors.ember,
+                        ),
+                      ],
+                    ),
+                    if (_details.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      ReorderableListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _details.length,
+                        onReorder: _onReorderDetails,
+                        itemBuilder: (context, index) {
+                          final detail = _details[index];
+                          return Material(
+                            key: ValueKey(detail.id),
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
                               ),
-                            ),
-                            onTap: () => _addOrEditDetail(detail, index),
-                            leading: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: ForjaColors.ember.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.bookmark_border_rounded,
-                                color: ForjaColors.ember,
-                                size: 20,
-                              ),
-                            ),
-                            title: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  margin: const EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    color: ForjaColors.ember.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: ForjaColors.ember.withValues(alpha: 0.5),
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    detail.type.label.toUpperCase(),
-                                    style: const TextStyle(
-                                      color: ForjaColors.ember,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: ForjaColors.divider.withValues(
+                                    alpha: 0.5,
                                   ),
                                 ),
-                                Expanded(
-                                  child: Text(
-                                    detail.title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
+                              ),
+                              onTap: () => _addOrEditDetail(detail, index),
+                              leading: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: ForjaColors.ember.withValues(
+                                    alpha: 0.1,
                                   ),
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
-                            ),
-                            subtitle: detail.items.isNotEmpty
-                                ? Text(
-                                    '${detail.items.length} sub-itens cadastrados',
-                                    style: const TextStyle(fontSize: 12),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  )
-                                : null,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (detail.items.isNotEmpty)
+                                child: const Icon(
+                                  Icons.bookmark_border_rounded,
+                                  color: ForjaColors.ember,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 6,
                                       vertical: 2,
                                     ),
+                                    margin: const EdgeInsets.only(right: 8),
                                     decoration: BoxDecoration(
-                                      color: ForjaColors.ember,
+                                      color: ForjaColors.ember.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: ForjaColors.ember.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        width: 0.5,
+                                      ),
                                     ),
                                     child: Text(
-                                      detail.items.length.toString(),
+                                      detail.type.label.toUpperCase(),
                                       style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
+                                        color: ForjaColors.ember,
+                                        fontSize: 9,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
-                                IconButton(
-                                  onPressed: () => _removeDetail(index),
-                                  icon: const Icon(
-                                    Icons.remove_circle_outline_rounded,
+                                  Expanded(
+                                    child: Text(
+                                      detail.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: detail.items.isNotEmpty
+                                  ? Text(
+                                      '${detail.items.length} sub-itens cadastrados',
+                                      style: const TextStyle(fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : null,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (detail.items.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: ForjaColors.ember,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        detail.items.length.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  IconButton(
+                                    onPressed: () => _removeDetail(index),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline_rounded,
+                                      size: 20,
+                                    ),
+                                    color: ForjaColors.error,
+                                  ),
+                                  const Icon(
+                                    Icons.drag_indicator_rounded,
+                                    color: ForjaColors.textSecondary,
                                     size: 20,
                                   ),
-                                  color: ForjaColors.error,
-                                ),
-                                const Icon(
-                                  Icons.drag_indicator_rounded,
-                                  color: ForjaColors.textSecondary,
-                                  size: 20,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: canSave ? _submit : null,
-              icon: const Icon(Icons.save_outlined),
-              label: Text(_saving ? 'SALVANDO...' : 'SALVAR INDICADOR'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: canSave ? _submit : null,
+                icon: const Icon(Icons.save_outlined),
+                label: Text(_saving ? 'SALVANDO...' : 'SALVAR INDICADOR'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _SimpleFormAppBar extends StatelessWidget implements PreferredSizeWidget {

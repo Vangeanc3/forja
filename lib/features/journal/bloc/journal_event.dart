@@ -11,11 +11,17 @@ class JournalRefreshed extends JournalEvent {
   const JournalRefreshed();
 }
 
-class JournalEntryAdded extends JournalEvent {
-  const JournalEntryAdded(this.content);
+class JournalTodayEntrySaved extends JournalEvent {
+  const JournalTodayEntrySaved({
+    required this.question,
+    required this.answer,
+    required this.extra,
+  });
 
-  final String content;
+  final String question;
+  final String answer;
+  final String extra;
 
   @override
-  List<Object?> get props => [content];
+  List<Object?> get props => [question, answer, extra];
 }

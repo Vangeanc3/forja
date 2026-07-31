@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
+import 'package:forja/shared/widgets/formatted_text.dart';
 
 class MetricDetailViewScreen extends StatelessWidget {
   const MetricDetailViewScreen({
@@ -15,10 +16,7 @@ class MetricDetailViewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(metricTitle),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: Text(metricTitle), elevation: 0),
       body: details.isEmpty
           ? const Center(child: Text('Nenhum detalhe cadastrado.'))
           : ListView.builder(
@@ -58,7 +56,11 @@ class _TopicCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.bookmark_rounded, color: ForjaColors.ember, size: 20),
+                    const Icon(
+                      Icons.bookmark_rounded,
+                      color: ForjaColors.ember,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -73,10 +75,11 @@ class _TopicCard extends StatelessWidget {
                 ),
                 if (detail.description.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    detail.description,
+                  FormattedText(
+                    data: detail.description,
                     style: text.bodyMedium?.copyWith(
                       color: ForjaColors.textSecondary,
+                      height: 1.45,
                     ),
                   ),
                 ],
@@ -107,11 +110,13 @@ class _TopicCard extends StatelessWidget {
                       ),
                       if (item.description.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        Text(
-                          item.description,
+                        FormattedText(
+                          data: item.description,
                           style: text.bodyMedium?.copyWith(
                             height: 1.5,
-                            color: ForjaColors.textPrimary.withValues(alpha: 0.9),
+                            color: ForjaColors.textPrimary.withValues(
+                              alpha: 0.9,
+                            ),
                           ),
                         ),
                       ],

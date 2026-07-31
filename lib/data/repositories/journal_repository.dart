@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:forja/data/models/journal_entry_model.dart';
 import 'package:forja/domain/entities/journal_entry_entity.dart';
@@ -21,10 +23,24 @@ class JournalRepository {
     return entries;
   }
 
-  Future<void> addEntry(String content) async {
-    final entry = JournalEntryModel(content: content, date: DateTime.now());
+  JournalEntryEntity? getTodayEntry() => _todayEntry();
+
+  Future<void> saveTodayEntry({
+    required String question,
+    required String answer,
+    required String extra,
+  }) async {
+    final existingEntry = _todayEntry();
+    final entry = JournalEntryModel(
+      date: existingEntry?.date ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      question: question,
+      answer: answer,
+      extra: extra,
+    );
+
     await _box.put(_entryId(entry), entry.toMap());
-    await _syncEntry(entry);
+    unawaited(_syncEntry(entry));
   }
 
   Future<void> syncAll() async {
@@ -48,13 +64,7 @@ class JournalRepository {
   }
 
   bool hasEntryToday() {
-    final today = DateTime.now();
-    return _box.values.whereType<Map>().any((e) {
-      final date = DateTime.parse(e['date'] as String);
-      return date.year == today.year &&
-          date.month == today.month &&
-          date.day == today.day;
-    });
+    return _todayEntry() != null;
   }
 
   Future<void> _syncEntry(JournalEntryModel entry) {
@@ -73,6 +83,22 @@ class JournalRepository {
           storedEntry.content == entry.content;
     });
   }
+
+  JournalEntryModel? _todayEntry() {
+    final today = DateTime.now();
+    final todayEntries = _box.values
+        .whereType<Map>()
+        .map(JournalEntryModel.fromMap)
+        .where((entry) => _isSameDay(entry.date, today))
+        .toList();
+
+    if (todayEntries.isEmpty) return null;
+    todayEntries.sort((a, b) => b.date.compareTo(a.date));
+    return todayEntries.first;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   String _entryId(JournalEntryModel entry) =>
       entry.date.microsecondsSinceEpoch.toString();
