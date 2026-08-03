@@ -101,4 +101,54 @@ void main() {
     expect(restored.averagePercent, 65);
     expect(restored.metrics.single.history.last.note, 'Depois de simulado');
   });
+
+  test('preserva tópicos aninhados ao converter área para map', () {
+    final original = ProgressAreaModel.fromEntity(
+      ProgressAreaEntity(
+        id: 'area-1',
+        title: 'Estudos PC/PA',
+        createdAt: DateTime(2026, 7, 21),
+        updatedAt: DateTime(2026, 7, 23),
+        metrics: [
+          ProgressMetricEntity(
+            id: 'metric-1',
+            title: 'Lingua Portuguesa',
+            percent: 70,
+            createdAt: DateTime(2026, 7, 21),
+            updatedAt: DateTime(2026, 7, 23),
+            details: const [
+              MetricDetailEntity(
+                id: 'classes-palavras',
+                title: 'Classes de palavras',
+                description: 'Grupo de tópicos',
+                type: MetricDetailType.topic,
+                items: [
+                  MetricDetailEntity(
+                    id: 'substantivo',
+                    title: 'Substantivo',
+                    description: 'Nomeia seres e coisas',
+                    type: MetricDetailType.concept,
+                  ),
+                  MetricDetailEntity(
+                    id: 'verbo',
+                    title: 'Verbo',
+                    description: 'Indica ação, estado ou fenômeno',
+                    type: MetricDetailType.concept,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final restored = ProgressAreaModel.fromMap(original.toMap());
+    final group = restored.metrics.single.details.single;
+
+    expect(group.id, 'classes-palavras');
+    expect(group.items.map((item) => item.id), ['substantivo', 'verbo']);
+    expect(group.items.first.description, 'Nomeia seres e coisas');
+    expect(group.items.last.type, MetricDetailType.concept);
+  });
 }

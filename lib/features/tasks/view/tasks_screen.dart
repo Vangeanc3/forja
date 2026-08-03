@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
+import 'package:forja/domain/services/metric_detail_tree.dart';
 import 'package:forja/features/tasks/bloc/progress_bloc.dart';
 import 'package:forja/features/tasks/bloc/progress_event.dart';
 import 'package:forja/features/tasks/router/tasks_router.dart';
@@ -15,6 +16,8 @@ import 'package:forja/shared/widgets/formatted_text.dart';
 enum _AreaAction { edit, delete }
 
 enum _MetricAction { edit, delete }
+
+enum _MetricDetailAction { edit, move, ungroup, delete }
 
 class ProgressAreasScreen extends StatelessWidget {
   const ProgressAreasScreen({super.key});
@@ -1147,6 +1150,8 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
   late final TextEditingController _noteController;
   late double _percent;
   final List<MetricDetailEntity> _details = [];
+  final Set<String> _selectedDetailIds = {};
+  bool _selectionMode = false;
   bool _saving = false;
 
   bool get _isEditing => widget.metricId != null;
@@ -1242,18 +1247,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     if (_percent != initialPercent) return true;
     if (_noteController.text.trim().isNotEmpty) return true;
 
-    if (_details.length != initialDetails.length) return true;
-    for (int i = 0; i < _details.length; i++) {
-      final detail = _details[i];
-      final initialDetail = initialDetails[i];
-      if (detail.title != initialDetail.title ||
-          detail.description != initialDetail.description ||
-          detail.items.length != initialDetail.items.length) {
-        return true;
-      }
-    }
-
-    return false;
+    return !MetricDetailTree.deepEquals(_details, initialDetails);
   }
 
   Future<bool?> _showDiscardDialog() {
@@ -1280,10 +1274,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     );
   }
 
-  Future<void> _addOrEditDetail([
-    MetricDetailEntity? detail,
-    int? index,
-  ]) async {
+  Future<void> _addOrEditDetail([MetricDetailEntity? detail]) async {
     final result = await Navigator.of(context).push<MetricDetailEntity>(
       MaterialPageRoute(
         builder: (_) => MetricDetailFormScreen(initialDetail: detail),
@@ -1291,27 +1282,125 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     );
 
     if (result != null) {
-      setState(() {
-        if (index != null) {
-          _details[index] = result;
-        } else {
-          _details.add(result);
-        }
-      });
-
-      if (_isEditing && mounted) {
-        _submit(popOnSuccess: false);
-      }
+      final next = detail == null
+          ? [..._details, result]
+          : MetricDetailTree.replace(
+              details: _details,
+              detailId: detail.id,
+              replacement: result,
+            );
+      _replaceDetails(next);
     }
   }
 
-  Future<void> _removeDetail(int index) async {
+  Future<void> _groupDetails({Set<String>? initialSelection}) async {
+    final result = await showModalBottomSheet<_GroupTopicsResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ForjaColors.surface,
+      builder: (context) => _GroupTopicsSheet(
+        details: _details,
+        initialSelectedIds: initialSelection ?? const <String>{},
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final firstSelectedIndex = _details.indexWhere(
+      (detail) => result.detailIds.contains(detail.id),
+    );
+    final parent = MetricDetailEntity(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: result.title,
+      description: result.description,
+      type: MetricDetailType.topic,
+    );
+    final grouped = MetricDetailTree.groupIntoParent(
+      details: _details,
+      parent: parent,
+      selectedIds: result.detailIds,
+      index: firstSelectedIndex < 0 ? null : firstSelectedIndex,
+    );
+
+    _replaceDetails(grouped, clearSelection: true);
+  }
+
+  Future<void> _moveDetail(MetricDetailEntity detail) async {
+    final destinations = _destinationOptionsForIds({detail.id});
+    if (destinations.isEmpty) return;
+
+    final result = await showModalBottomSheet<_MoveTopicResult>(
+      context: context,
+      backgroundColor: ForjaColors.surface,
+      builder: (context) => _MoveTopicSheet(
+        topicTitle: detail.title,
+        destinations: destinations,
+        showRootDestination: false,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final moved = MetricDetailTree.moveMany(
+      details: _details,
+      detailIds: {detail.id},
+      parentId: result.parentId,
+    );
+
+    _replaceDetails(moved, clearSelection: true);
+  }
+
+  Future<void> _moveSelectedDetails() async {
+    final selectedIds = Set<String>.of(_selectedDetailIds);
+    if (selectedIds.isEmpty) return;
+
+    final destinations = _destinationOptionsForIds(selectedIds);
+    if (destinations.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum destino disponível.')),
+      );
+      return;
+    }
+
+    final result = await showModalBottomSheet<_MoveTopicResult>(
+      context: context,
+      backgroundColor: ForjaColors.surface,
+      builder: (context) => _MoveTopicSheet(
+        topicTitle: '${selectedIds.length} tópicos selecionados',
+        destinations: destinations,
+        showRootDestination: false,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final moved = MetricDetailTree.moveMany(
+      details: _details,
+      detailIds: selectedIds,
+      parentId: result.parentId,
+    );
+
+    _replaceDetails(moved, clearSelection: true);
+  }
+
+  Future<void> _ungroupDetail(MetricDetailEntity detail) async {
+    if (detail.items.isEmpty) return;
+
+    final ungrouped = MetricDetailTree.ungroup(
+      details: _details,
+      parentId: detail.id,
+    );
+
+    _replaceDetails(ungrouped, clearSelection: true);
+  }
+
+  Future<void> _removeDetail(MetricDetailEntity detail) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: ForjaColors.surface,
         title: const Text('Remover tópico?'),
-        content: Text('Deseja remover o tópico "${_details[index].title}"?'),
+        content: Text('Deseja remover o tópico "${detail.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1327,11 +1416,10 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     );
 
     if (confirmed == true && mounted) {
-      setState(() => _details.removeAt(index));
-
-      if (_isEditing && mounted) {
-        _submit(popOnSuccess: false);
-      }
+      _replaceDetails(
+        MetricDetailTree.remove(details: _details, detailId: detail.id).details,
+        clearSelection: true,
+      );
     }
   }
 
@@ -1353,6 +1441,75 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     }
   }
 
+  void _replaceDetails(
+    List<MetricDetailEntity> details, {
+    bool clearSelection = false,
+  }) {
+    setState(() {
+      _details
+        ..clear()
+        ..addAll(details);
+
+      if (clearSelection) {
+        _selectedDetailIds.clear();
+      } else {
+        final topLevelIds = _details.map((detail) => detail.id).toSet();
+        _selectedDetailIds.removeWhere((id) => !topLevelIds.contains(id));
+      }
+      _selectionMode = _selectionMode && _selectedDetailIds.isNotEmpty;
+    });
+
+    if (_isEditing && mounted) {
+      _submit(popOnSuccess: false);
+    }
+  }
+
+  bool _canMoveDetail(MetricDetailEntity detail) =>
+      _destinationOptionsForIds({detail.id}).isNotEmpty;
+
+  List<_TopicDestination> _destinationOptionsForIds(Set<String> movingIds) {
+    return _details
+        .where((detail) => !movingIds.contains(detail.id))
+        .map(
+          (detail) =>
+              _TopicDestination(id: detail.id, title: detail.title, depth: 0),
+        )
+        .toList();
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _selectionMode = !_selectionMode;
+      if (!_selectionMode) _selectedDetailIds.clear();
+    });
+  }
+
+  void _toggleDetailSelection(MetricDetailEntity detail) {
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedDetailIds.add(detail.id)) {
+        _selectedDetailIds.remove(detail.id);
+      }
+      _selectionMode = _selectedDetailIds.isNotEmpty;
+    });
+  }
+
+  void _selectAllDetails() {
+    setState(() {
+      _selectionMode = true;
+      _selectedDetailIds
+        ..clear()
+        ..addAll(_details.map((detail) => detail.id));
+    });
+  }
+
+  void _clearDetailSelection() {
+    setState(() {
+      _selectionMode = false;
+      _selectedDetailIds.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -1363,6 +1520,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
         : _findMetric(area?.metrics ?? const [], widget.metricId!);
     final canSave = _titleController.text.trim().isNotEmpty && !_saving;
     final percent = _percent.round();
+    final selectedCount = _selectedDetailIds.length;
 
     if (area == null) {
       return const Scaffold(
@@ -1507,7 +1665,9 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                                 ),
                               ),
                               Text(
-                                'Adicione detalhes, conceitos e regras.',
+                                _selectionMode
+                                    ? '$selectedCount selecionados'
+                                    : 'Adicione detalhes, conceitos e regras.',
                                 style: text.bodySmall?.copyWith(
                                   color: ForjaColors.textSecondary,
                                 ),
@@ -1515,136 +1675,255 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => _addOrEditDetail(),
-                          icon: const Icon(Icons.add_circle_outline_rounded),
-                          color: ForjaColors.ember,
-                        ),
+                        if (_selectionMode) ...[
+                          IconButton(
+                            tooltip: 'Selecionar todos',
+                            onPressed: _selectAllDetails,
+                            icon: const Icon(Icons.select_all_rounded),
+                            color: ForjaColors.ember,
+                          ),
+                          IconButton(
+                            tooltip: 'Mover selecionados',
+                            onPressed: selectedCount > 0
+                                ? _moveSelectedDetails
+                                : null,
+                            icon: const Icon(Icons.drive_file_move_outline),
+                            color: ForjaColors.ember,
+                          ),
+                          IconButton(
+                            tooltip: 'Agrupar selecionados',
+                            onPressed: selectedCount >= 2
+                                ? () => _groupDetails(
+                                    initialSelection: Set<String>.of(
+                                      _selectedDetailIds,
+                                    ),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.account_tree_rounded),
+                            color: ForjaColors.ember,
+                          ),
+                          IconButton(
+                            tooltip: 'Cancelar seleção',
+                            onPressed: _clearDetailSelection,
+                            icon: const Icon(Icons.close_rounded),
+                            color: ForjaColors.textSecondary,
+                          ),
+                        ] else ...[
+                          IconButton(
+                            tooltip: 'Selecionar tópicos',
+                            onPressed: _details.isNotEmpty
+                                ? _toggleSelectionMode
+                                : null,
+                            icon: const Icon(Icons.checklist_rounded),
+                            color: ForjaColors.ember,
+                          ),
+                          IconButton(
+                            tooltip: 'Agrupar tópicos',
+                            onPressed: _details.length >= 2
+                                ? () => _groupDetails()
+                                : null,
+                            icon: const Icon(Icons.account_tree_rounded),
+                            color: ForjaColors.ember,
+                          ),
+                          IconButton(
+                            tooltip: 'Novo tópico',
+                            onPressed: () => _addOrEditDetail(),
+                            icon: const Icon(Icons.add_circle_outline_rounded),
+                            color: ForjaColors.ember,
+                          ),
+                        ],
                       ],
                     ),
                     if (_details.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       ReorderableListView.builder(
+                        buildDefaultDragHandles: false,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: _details.length,
                         onReorder: _onReorderDetails,
                         itemBuilder: (context, index) {
                           final detail = _details[index];
+                          final selected = _selectedDetailIds.contains(
+                            detail.id,
+                          );
                           return Material(
                             key: ValueKey(detail.id),
                             color: Colors.transparent,
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              shape: RoundedRectangleBorder(
+                            child: Container(
+                              decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
+                                border: Border.all(
                                   color: ForjaColors.divider.withValues(
                                     alpha: 0.5,
                                   ),
                                 ),
                               ),
-                              onTap: () => _addOrEditDetail(detail, index),
-                              leading: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: ForjaColors.ember.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.bookmark_border_rounded,
-                                  color: ForjaColors.ember,
-                                  size: 20,
-                                ),
-                              ),
-                              title: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
+                                  ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
                                     ),
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      color: ForjaColors.ember.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: ForjaColors.ember.withValues(
-                                          alpha: 0.5,
+                                    selected: selected,
+                                    onTap: _selectionMode
+                                        ? () => _toggleDetailSelection(detail)
+                                        : () => _addOrEditDetail(detail),
+                                    onLongPress: () =>
+                                        _toggleDetailSelection(detail),
+                                    leading: _selectionMode
+                                        ? Checkbox(
+                                            value: selected,
+                                            activeColor: ForjaColors.ember,
+                                            onChanged: (_) =>
+                                                _toggleDetailSelection(detail),
+                                          )
+                                        : Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              color: ForjaColors.ember
+                                                  .withValues(alpha: 0.1),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.bookmark_border_rounded,
+                                              color: ForjaColors.ember,
+                                              size: 20,
+                                            ),
+                                          ),
+                                    title: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: ForjaColors.ember.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                            border: Border.all(
+                                              color: ForjaColors.ember
+                                                  .withValues(alpha: 0.5),
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            detail.type.label.toUpperCase(),
+                                            style: const TextStyle(
+                                              color: ForjaColors.ember,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      detail.type.label.toUpperCase(),
-                                      style: const TextStyle(
-                                        color: ForjaColors.ember,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      detail.title,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              subtitle: detail.items.isNotEmpty
-                                  ? Text(
-                                      '${detail.items.length} sub-itens cadastrados',
-                                      style: const TextStyle(fontSize: 12),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (detail.items.isNotEmpty)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: ForjaColors.ember,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        detail.items.length.toString(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                        Expanded(
+                                          child: Text(
+                                            detail.title,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  IconButton(
-                                    onPressed: () => _removeDetail(index),
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline_rounded,
-                                      size: 20,
-                                    ),
-                                    color: ForjaColors.error,
-                                  ),
-                                  const Icon(
-                                    Icons.drag_indicator_rounded,
-                                    color: ForjaColors.textSecondary,
-                                    size: 20,
+                                    subtitle: detail.items.isNotEmpty
+                                        ? Text(
+                                            '${detail.items.length} sub-itens cadastrados',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          )
+                                        : null,
+                                    trailing: _selectionMode
+                                        ? detail.items.isEmpty
+                                              ? null
+                                              : _SubtopicCountBadge(
+                                                  count: detail.items.length,
+                                                )
+                                        : Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (detail.items.isNotEmpty)
+                                                _SubtopicCountBadge(
+                                                  count: detail.items.length,
+                                                ),
+                                              PopupMenuButton<
+                                                _MetricDetailAction
+                                              >(
+                                                icon: const Icon(
+                                                  Icons.more_vert_rounded,
+                                                ),
+                                                onSelected: (action) {
+                                                  switch (action) {
+                                                    case _MetricDetailAction
+                                                        .edit:
+                                                      _addOrEditDetail(detail);
+                                                      break;
+                                                    case _MetricDetailAction
+                                                        .move:
+                                                      _moveDetail(detail);
+                                                      break;
+                                                    case _MetricDetailAction
+                                                        .ungroup:
+                                                      _ungroupDetail(detail);
+                                                      break;
+                                                    case _MetricDetailAction
+                                                        .delete:
+                                                      _removeDetail(detail);
+                                                      break;
+                                                  }
+                                                },
+                                                itemBuilder: (context) => [
+                                                  const PopupMenuItem(
+                                                    value: _MetricDetailAction
+                                                        .edit,
+                                                    child: Text('Editar'),
+                                                  ),
+                                                  PopupMenuItem(
+                                                    value: _MetricDetailAction
+                                                        .move,
+                                                    enabled: _canMoveDetail(
+                                                      detail,
+                                                    ),
+                                                    child: const Text(
+                                                      'Mover para...',
+                                                    ),
+                                                  ),
+                                                  if (detail.items.isNotEmpty)
+                                                    const PopupMenuItem(
+                                                      value: _MetricDetailAction
+                                                          .ungroup,
+                                                      child: Text('Desagrupar'),
+                                                    ),
+                                                  const PopupMenuItem(
+                                                    value: _MetricDetailAction
+                                                        .delete,
+                                                    child: Text(
+                                                      'Remover',
+                                                      style: TextStyle(
+                                                        color:
+                                                            ForjaColors.error,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              _ReorderHandle(index: index),
+                                            ],
+                                          ),
                                   ),
                                 ],
                               ),
@@ -1661,6 +1940,392 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                 onPressed: canSave ? _submit : null,
                 icon: const Icon(Icons.save_outlined),
                 label: Text(_saving ? 'SALVANDO...' : 'SALVAR INDICADOR'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupTopicsResult {
+  const _GroupTopicsResult({
+    required this.title,
+    required this.description,
+    required this.detailIds,
+  });
+
+  final String title;
+  final String description;
+  final Set<String> detailIds;
+}
+
+class _MoveTopicResult {
+  const _MoveTopicResult({required this.parentId});
+
+  final String? parentId;
+}
+
+class _TopicDestination {
+  const _TopicDestination({
+    required this.id,
+    required this.title,
+    required this.depth,
+  });
+
+  final String id;
+  final String title;
+  final int depth;
+}
+
+class _ReorderHandle extends StatelessWidget {
+  const _ReorderHandle({required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableDragStartListener(
+      index: index,
+      child: Tooltip(
+        message: 'Arrastar',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: Icon(
+                Icons.drag_handle_rounded,
+                size: 18,
+                color: ForjaColors.textSecondary.withValues(alpha: 0.78),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubtopicCountBadge extends StatelessWidget {
+  const _SubtopicCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: ForjaColors.ember,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupTopicsSheet extends StatefulWidget {
+  const _GroupTopicsSheet({
+    required this.details,
+    this.initialSelectedIds = const <String>{},
+  });
+
+  final List<MetricDetailEntity> details;
+  final Set<String> initialSelectedIds;
+
+  @override
+  State<_GroupTopicsSheet> createState() => _GroupTopicsSheetState();
+}
+
+class _GroupTopicsSheetState extends State<_GroupTopicsSheet> {
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final Set<String> _selectedIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final detailIds = widget.details.map((detail) => detail.id).toSet();
+    _selectedIds.addAll(widget.initialSelectedIds.intersection(detailIds));
+    _titleController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  void _toggleAll() {
+    setState(() {
+      if (_selectedIds.length == widget.details.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds
+          ..clear()
+          ..addAll(widget.details.map((detail) => detail.id));
+      }
+    });
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    if (title.isEmpty || _selectedIds.length < 2) return;
+
+    Navigator.of(context).pop(
+      _GroupTopicsResult(
+        title: title,
+        description: _descriptionController.text.trim(),
+        detailIds: Set.of(_selectedIds),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.86;
+    final canSubmit =
+        _titleController.text.trim().isNotEmpty && _selectedIds.length >= 2;
+    final allSelected = _selectedIds.length == widget.details.length;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const _IconBadge(icon: Icons.account_tree_rounded),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Agrupar tópicos',
+                      style: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do grupo',
+                  hintText: 'Classes de palavras',
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              FormattedTextField(
+                controller: _descriptionController,
+                labelText: 'Descrição',
+                hintText: 'Resumo opcional',
+                minLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_selectedIds.length} selecionados',
+                      style: text.bodySmall?.copyWith(
+                        color: ForjaColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _toggleAll,
+                    child: Text(allSelected ? 'LIMPAR' : 'SELECIONAR TODOS'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: widget.details.length,
+                  itemBuilder: (context, index) {
+                    final detail = widget.details[index];
+                    final checked = _selectedIds.contains(detail.id);
+
+                    return CheckboxListTile(
+                      value: checked,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        detail.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: detail.items.isEmpty
+                          ? null
+                          : Text('${detail.items.length} sub-itens'),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedIds.add(detail.id);
+                          } else {
+                            _selectedIds.remove(detail.id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('CANCELAR'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: canSubmit ? _submit : null,
+                      icon: const Icon(Icons.account_tree_rounded),
+                      label: const Text('AGRUPAR'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoveTopicSheet extends StatelessWidget {
+  const _MoveTopicSheet({
+    required this.topicTitle,
+    required this.destinations,
+    required this.showRootDestination,
+  });
+
+  final String topicTitle;
+  final List<_TopicDestination> destinations;
+  final bool showRootDestination;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.72;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const _IconBadge(icon: Icons.drive_file_move_outline),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mover tópico',
+                          style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          topicTitle,
+                          style: text.bodySmall?.copyWith(
+                            color: ForjaColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount:
+                      destinations.length + (showRootDestination ? 1 : 0),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    if (showRootDestination && index == 0) {
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                        ),
+                        leading: const Icon(
+                          Icons.format_list_bulleted_rounded,
+                          color: ForjaColors.ember,
+                        ),
+                        title: const Text('Lista principal'),
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pop(const _MoveTopicResult(parentId: null)),
+                      );
+                    }
+
+                    final destination =
+                        destinations[showRootDestination ? index - 1 : index];
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.only(
+                        left: 8 + (destination.depth * 16),
+                        right: 8,
+                      ),
+                      leading: const Icon(
+                        Icons.subdirectory_arrow_right_rounded,
+                        color: ForjaColors.ember,
+                      ),
+                      title: Text(
+                        destination.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(_MoveTopicResult(parentId: destination.id)),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('CANCELAR'),
+                ),
               ),
             ],
           ),

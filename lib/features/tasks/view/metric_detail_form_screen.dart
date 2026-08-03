@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
+import 'package:forja/domain/services/metric_detail_tree.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
 
 class MetricDetailFormScreen extends StatefulWidget {
@@ -111,20 +112,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
     if (_descriptionController.text.trim() != initialDescription) return true;
     if (_type != initialType) return true;
 
-    if (_items.length != initialItems.length) return true;
-    for (int i = 0; i < _items.length; i++) {
-      final item = _items[i];
-      final initialItem = initialItems[i];
-      if (item.id != initialItem.id ||
-          item.title != initialItem.title ||
-          item.description != initialItem.description ||
-          item.type != initialItem.type ||
-          item.items.length != initialItem.items.length) {
-        return true;
-      }
-    }
-
-    return false;
+    return !MetricDetailTree.deepEquals(_items, initialItems);
   }
 
   Future<bool?> _showDiscardDialog() {
@@ -291,6 +279,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
               _EmptyState(onAdd: () => _addOrEditItem())
             else
               ReorderableListView.builder(
+                buildDefaultDragHandles: false,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _items.length,
@@ -299,6 +288,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                   final item = _items[index];
                   return _ItemCard(
                     key: ValueKey(item.id),
+                    dragIndex: index,
                     item: item,
                     onTap: () => _addOrEditItem(index),
                     onRemove: () => _removeItem(index),
@@ -314,12 +304,14 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
 
 class _ItemCard extends StatelessWidget {
   const _ItemCard({
+    required this.dragIndex,
     required this.item,
     required this.onTap,
     required this.onRemove,
     super.key,
   });
 
+  final int dragIndex;
   final MetricDetailEntity item;
   final VoidCallback onTap;
   final VoidCallback onRemove;
@@ -378,12 +370,37 @@ class _ItemCard extends StatelessWidget {
                   color: ForjaColors.error,
                   visualDensity: VisualDensity.compact,
                 ),
-                const Icon(
-                  Icons.drag_indicator_rounded,
-                  color: ForjaColors.textSecondary,
-                  size: 20,
-                ),
+                _ReorderHandle(index: dragIndex),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReorderHandle extends StatelessWidget {
+  const _ReorderHandle({required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableDragStartListener(
+      index: index,
+      child: Tooltip(
+        message: 'Arrastar',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: Icon(
+                Icons.drag_handle_rounded,
+                size: 18,
+                color: ForjaColors.textSecondary.withValues(alpha: 0.78),
+              ),
             ),
           ),
         ),
