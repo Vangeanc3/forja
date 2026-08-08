@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
 import 'package:forja/domain/services/metric_detail_tree.dart';
+import 'package:forja/features/tasks/view/widgets/group_topics_sheet.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
 
 class MetricDetailFormScreen extends StatefulWidget {
@@ -18,6 +19,8 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   late final TextEditingController _descriptionController;
   late MetricDetailType _type;
   final List<MetricDetailEntity> _items = [];
+  bool _selectionMode = false;
+  final Set<String> _selectedItemIds = {};
 
   @override
   void initState() {
@@ -43,6 +46,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   }
 
   Future<void> _addOrEditItem([int? index]) async {
+    if (_selectionMode) return;
     final initialItem = index != null ? _items[index] : null;
 
     final result = await Navigator.of(context).push<MetricDetailEntity>(
@@ -93,6 +97,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   }
 
   void _onReorderItems(int oldIndex, int newIndex) {
+    if (_selectionMode) return;
     setState(() {
       if (oldIndex < newIndex) {
         newIndex -= 1;
@@ -113,6 +118,79 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
     if (_type != initialType) return true;
 
     return !MetricDetailTree.deepEquals(_items, initialItems);
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _selectionMode = !_selectionMode;
+      if (!_selectionMode) {
+        _selectedItemIds.clear();
+      }
+    });
+  }
+
+  void _toggleItemSelection(MetricDetailEntity item) {
+    setState(() {
+      if (_selectedItemIds.contains(item.id)) {
+        _selectedItemIds.remove(item.id);
+      } else {
+        _selectedItemIds.add(item.id);
+      }
+
+      if (_selectedItemIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _selectAllItems() {
+    setState(() {
+      _selectedItemIds.addAll(_items.map((e) => e.id));
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedItemIds.clear();
+      _selectionMode = false;
+    });
+  }
+
+  Future<void> _groupItems({Set<String>? initialSelection}) async {
+    final result = await showModalBottomSheet<GroupTopicsResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ForjaColors.surface,
+      builder: (context) => GroupTopicsSheet(
+        details: _items,
+        initialSelectedIds: initialSelection ?? const <String>{},
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final firstSelectedIndex = _items.indexWhere(
+      (item) => result.detailIds.contains(item.id),
+    );
+
+    final parent = MetricDetailEntity(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: result.title,
+      description: result.description,
+      type: MetricDetailType.topic,
+    );
+
+    setState(() {
+      final grouped = MetricDetailTree.groupIntoParent(
+        details: _items,
+        parent: parent,
+        selectedIds: result.detailIds,
+        index: firstSelectedIndex < 0 ? null : firstSelectedIndex,
+      );
+      _items.clear();
+      _items.addAll(grouped);
+      _clearSelection();
+    });
   }
 
   Future<bool?> _showDiscardDialog() {
@@ -169,6 +247,11 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+
+        if (_selectionMode) {
+          _clearSelection();
+          return;
+        }
 
         if (!_hasChanges()) {
           Navigator.of(context).pop();
@@ -267,11 +350,52 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _addOrEditItem(),
-                  icon: const Icon(Icons.add_circle_outline_rounded),
-                  color: ForjaColors.ember,
-                ),
+                if (_selectionMode) ...[
+                  IconButton(
+                    tooltip: 'Selecionar todos',
+                    onPressed: _selectAllItems,
+                    icon: const Icon(Icons.select_all_rounded),
+                    color: ForjaColors.ember,
+                  ),
+                  IconButton(
+                    tooltip: 'Agrupar selecionados',
+                    onPressed: _selectedItemIds.length >= 2
+                        ? () => _groupItems(
+                              initialSelection: Set<String>.of(
+                                _selectedItemIds,
+                              ),
+                            )
+                        : null,
+                    icon: const Icon(Icons.account_tree_rounded),
+                    color: ForjaColors.ember,
+                  ),
+                  IconButton(
+                    tooltip: 'Cancelar seleção',
+                    onPressed: _clearSelection,
+                    icon: const Icon(Icons.close_rounded),
+                    color: ForjaColors.textSecondary,
+                  ),
+                ] else ...[
+                  IconButton(
+                    tooltip: 'Selecionar tópicos',
+                    onPressed:
+                        _items.isNotEmpty ? _toggleSelectionMode : null,
+                    icon: const Icon(Icons.checklist_rounded),
+                    color: ForjaColors.ember,
+                  ),
+                  IconButton(
+                    tooltip: 'Agrupar tópicos',
+                    onPressed:
+                        _items.length >= 2 ? () => _groupItems() : null,
+                    icon: const Icon(Icons.account_tree_rounded),
+                    color: ForjaColors.ember,
+                  ),
+                  IconButton(
+                    onPressed: () => _addOrEditItem(),
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                    color: ForjaColors.ember,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -286,11 +410,17 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                 onReorder: _onReorderItems,
                 itemBuilder: (context, index) {
                   final item = _items[index];
+                  final selected = _selectedItemIds.contains(item.id);
                   return _ItemCard(
                     key: ValueKey(item.id),
                     dragIndex: index,
                     item: item,
-                    onTap: () => _addOrEditItem(index),
+                    selected: selected,
+                    selectionMode: _selectionMode,
+                    onTap: _selectionMode
+                        ? () => _toggleItemSelection(item)
+                        : () => _addOrEditItem(index),
+                    onLongPress: () => _toggleItemSelection(item),
                     onRemove: () => _removeItem(index),
                   );
                 },
@@ -308,6 +438,9 @@ class _ItemCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.onRemove,
+    this.selected = false,
+    this.selectionMode = false,
+    this.onLongPress,
     super.key,
   });
 
@@ -315,6 +448,9 @@ class _ItemCard extends StatelessWidget {
   final MetricDetailEntity item;
   final VoidCallback onTap;
   final VoidCallback onRemove;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -323,17 +459,32 @@ class _ItemCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: ForjaColors.divider.withValues(alpha: 0.5)),
+        side: BorderSide(
+          color: selected
+              ? ForjaColors.ember
+              : ForjaColors.divider.withValues(alpha: 0.5),
+          width: selected ? 2 : 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
+                if (selectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Checkbox(
+                      value: selected,
+                      activeColor: ForjaColors.ember,
+                      onChanged: (_) => onTap(),
+                    ),
+                  ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,12 +516,12 @@ class _ItemCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: onRemove,
+                  onPressed: selectionMode ? null : onRemove,
                   icon: const Icon(Icons.delete_outline, size: 20),
                   color: ForjaColors.error,
                   visualDensity: VisualDensity.compact,
                 ),
-                _ReorderHandle(index: dragIndex),
+                if (!selectionMode) _ReorderHandle(index: dragIndex),
               ],
             ),
           ),
