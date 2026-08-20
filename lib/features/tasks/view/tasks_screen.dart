@@ -14,11 +14,11 @@ import 'package:forja/features/tasks/view/metric_detail_view_screen.dart';
 import 'package:forja/features/tasks/view/widgets/group_topics_sheet.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
 
-enum _AreaAction { edit, delete }
+enum _AreaAction { edit, duplicate, delete }
 
-enum _MetricAction { edit, delete }
+enum _MetricAction { edit, duplicate, delete }
 
-enum _MetricDetailAction { edit, move, ungroup, delete }
+enum _MetricDetailAction { edit, move, duplicate, ungroup, delete }
 
 class ProgressAreasScreen extends StatelessWidget {
   const ProgressAreasScreen({super.key});
@@ -74,6 +74,9 @@ class ProgressAreasScreen extends StatelessWidget {
                         context.push(TasksRouter.detailLocation(area.id)),
                     onEdit: () =>
                         context.push(TasksRouter.editAreaLocation(area.id)),
+                    onDuplicate: () => context.read<ProgressBloc>().add(
+                      ProgressAreaDuplicated(area.id),
+                    ),
                     onDelete: () => _confirmDeleteArea(context, area),
                   );
                 },
@@ -169,6 +172,12 @@ class ProgressAreaDetailScreen extends StatelessWidget {
                     metric: metric,
                     onEdit: () => context.push(
                       TasksRouter.editMetricLocation(area.id, metric.id),
+                    ),
+                    onDuplicate: () => context.read<ProgressBloc>().add(
+                      ProgressMetricDuplicated(
+                        areaId: area.id,
+                        metricId: metric.id,
+                      ),
                     ),
                     onDelete: () => _confirmDeleteMetric(context, area, metric),
                   );
@@ -287,12 +296,14 @@ class _AreaCard extends StatelessWidget {
     required this.area,
     required this.onOpen,
     required this.onEdit,
+    required this.onDuplicate,
     required this.onDelete,
   });
 
   final ProgressAreaEntity area;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
 
   @override
@@ -348,6 +359,9 @@ class _AreaCard extends StatelessWidget {
                       case _AreaAction.edit:
                         onEdit();
                         break;
+                      case _AreaAction.duplicate:
+                        onDuplicate();
+                        break;
                       case _AreaAction.delete:
                         onDelete();
                         break;
@@ -357,6 +371,10 @@ class _AreaCard extends StatelessWidget {
                     PopupMenuItem(
                       value: _AreaAction.edit,
                       child: Text('Editar'),
+                    ),
+                    PopupMenuItem(
+                      value: _AreaAction.duplicate,
+                      child: Text('Duplicar'),
                     ),
                     PopupMenuItem(
                       value: _AreaAction.delete,
@@ -466,11 +484,13 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.metric,
     required this.onEdit,
+    required this.onDuplicate,
     required this.onDelete,
   });
 
   final ProgressMetricEntity metric;
   final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
 
   @override
@@ -527,6 +547,9 @@ class _MetricCard extends StatelessWidget {
                       case _MetricAction.edit:
                         onEdit();
                         break;
+                      case _MetricAction.duplicate:
+                        onDuplicate();
+                        break;
                       case _MetricAction.delete:
                         onDelete();
                         break;
@@ -536,6 +559,10 @@ class _MetricCard extends StatelessWidget {
                     PopupMenuItem(
                       value: _MetricAction.edit,
                       child: Text('Editar'),
+                    ),
+                    PopupMenuItem(
+                      value: _MetricAction.duplicate,
+                      child: Text('Duplicar'),
                     ),
                     PopupMenuItem(
                       value: _MetricAction.delete,
@@ -1357,6 +1384,17 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
     _replaceDetails(moved, clearSelection: true);
   }
 
+  void _duplicateDetail(MetricDetailEntity detail) {
+    var seed = 0;
+    final duplicated = MetricDetailTree.duplicate(
+      details: _details,
+      detailId: detail.id,
+      generateId: () => '${DateTime.now().microsecondsSinceEpoch}-${seed++}',
+    );
+
+    _replaceDetails(duplicated, clearSelection: true);
+  }
+
   Future<void> _ungroupDetail(MetricDetailEntity detail) async {
     if (detail.items.isEmpty) return;
 
@@ -1851,6 +1889,10 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                                                       _moveDetail(detail);
                                                       break;
                                                     case _MetricDetailAction
+                                                        .duplicate:
+                                                      _duplicateDetail(detail);
+                                                      break;
+                                                    case _MetricDetailAction
                                                         .ungroup:
                                                       _ungroupDetail(detail);
                                                       break;
@@ -1875,6 +1917,11 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
                                                     child: const Text(
                                                       'Mover para...',
                                                     ),
+                                                  ),
+                                                  const PopupMenuItem(
+                                                    value: _MetricDetailAction
+                                                        .duplicate,
+                                                    child: Text('Duplicar'),
                                                   ),
                                                   if (detail.items.isNotEmpty)
                                                     const PopupMenuItem(

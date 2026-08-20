@@ -3,6 +3,108 @@ import 'package:forja/domain/entities/progress_area_entity.dart';
 import 'package:forja/domain/services/metric_detail_tree.dart';
 
 void main() {
+  test('duplica um tópico com novo id, logo depois do original', () {
+    const substantivo = MetricDetailEntity(
+      id: 'substantivo',
+      title: 'Substantivo',
+      description: 'Nomeia seres e coisas',
+    );
+    const crase = MetricDetailEntity(
+      id: 'crase',
+      title: 'Crase',
+      description: '',
+    );
+
+    var seed = 0;
+    final duplicated = MetricDetailTree.duplicate(
+      details: const [substantivo, crase],
+      detailId: 'substantivo',
+      generateId: () => 'novo-${seed++}',
+    );
+
+    expect(duplicated.map((detail) => detail.id), [
+      'substantivo',
+      'novo-0',
+      'crase',
+    ]);
+    expect(duplicated[1].title, 'Substantivo (cópia)');
+    expect(duplicated[1].description, 'Nomeia seres e coisas');
+    expect(identical(duplicated[0], substantivo), isTrue);
+  });
+
+  test('duplica um tópico aninhado dentro de um grupo, preservando sub-itens', () {
+    const tempos = MetricDetailEntity(
+      id: 'tempos-verbais',
+      title: 'Tempos verbais',
+      description: 'Presente, pretérito e futuro',
+    );
+    const verbo = MetricDetailEntity(
+      id: 'verbo',
+      title: 'Verbo',
+      description: '',
+      items: [tempos],
+    );
+    const classes = MetricDetailEntity(
+      id: 'classes-palavras',
+      title: 'Classes de palavras',
+      description: '',
+      items: [verbo],
+    );
+
+    var seed = 0;
+    final duplicated = MetricDetailTree.duplicate(
+      details: const [classes],
+      detailId: 'tempos-verbais',
+      generateId: () => 'novo-${seed++}',
+    );
+
+    final group = duplicated.single;
+    final verboAtualizado = group.items.single;
+    expect(verboAtualizado.items.map((d) => d.id), [
+      'tempos-verbais',
+      'novo-0',
+    ]);
+    expect(verboAtualizado.items.last.title, 'Tempos verbais (cópia)');
+  });
+
+  test('duplica um tópico com sub-itens, gerando ids novos em toda a subárvore', () {
+    const excecoes = MetricDetailEntity(
+      id: 'excecoes',
+      title: 'Exceções',
+      description: 'Casos especiais',
+    );
+    const crase = MetricDetailEntity(
+      id: 'crase',
+      title: 'Crase',
+      description: 'Regras de crase',
+      items: [excecoes],
+    );
+
+    var seed = 0;
+    final duplicated = MetricDetailTree.duplicate(
+      details: const [crase],
+      detailId: 'crase',
+      generateId: () => 'novo-${seed++}',
+    );
+
+    expect(duplicated.map((d) => d.id), ['crase', 'novo-0']);
+    final clone = duplicated.last;
+    expect(clone.title, 'Crase (cópia)');
+    expect(clone.items.single.id, 'novo-1');
+    expect(clone.items.single.title, 'Exceções');
+  });
+
+  test('duplicar um tópico inexistente lança erro', () {
+    expect(
+      () => MetricDetailTree.duplicate(
+        details: const [],
+        detailId: 'nao-existe',
+        generateId: () => 'novo',
+      ),
+      throwsStateError,
+    );
+  });
+
   test('agrupa tópicos selecionados preservando os dados originais', () {
     const substantivo = MetricDetailEntity(
       id: 'substantivo',

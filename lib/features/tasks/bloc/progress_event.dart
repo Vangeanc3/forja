@@ -46,6 +46,15 @@ class ProgressAreaDeleted extends ProgressEvent {
   List<Object?> get props => [id];
 }
 
+class ProgressAreaDuplicated extends ProgressEvent {
+  const ProgressAreaDuplicated(this.id);
+
+  final String id;
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class ProgressMetricCreated extends ProgressEvent {
   const ProgressMetricCreated({
     required this.areaId,
@@ -100,6 +109,19 @@ class ProgressMetricUpdated extends ProgressEvent {
 
 class ProgressMetricDeleted extends ProgressEvent {
   const ProgressMetricDeleted({required this.areaId, required this.metricId});
+
+  final String areaId;
+  final String metricId;
+
+  @override
+  List<Object?> get props => [areaId, metricId];
+}
+
+class ProgressMetricDuplicated extends ProgressEvent {
+  const ProgressMetricDuplicated({
+    required this.areaId,
+    required this.metricId,
+  });
 
   final String areaId;
   final String metricId;

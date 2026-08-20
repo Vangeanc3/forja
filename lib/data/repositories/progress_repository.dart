@@ -65,6 +65,26 @@ class ProgressRepository {
     await _syncAreaDeletion(id, deletedAt);
   }
 
+  Future<void> duplicateArea(String id) async {
+    final area = _getArea(id);
+    if (area == null) return;
+
+    final now = DateTime.now();
+    final duplicated = ProgressAreaModel(
+      id: _newId(),
+      title: '${area.title} (cópia)',
+      description: area.description,
+      createdAt: now,
+      updatedAt: now,
+      metrics: area.metrics
+          .map((metric) => _duplicateMetric(metric, now, titleSuffix: false))
+          .toList(),
+    );
+
+    await _box.put(duplicated.id, duplicated.toMap());
+    await _syncArea(duplicated);
+  }
+
   Future<void> addMetric({
     required String areaId,
     required String title,
@@ -170,6 +190,29 @@ class ProgressRepository {
     await _syncArea(updatedArea);
   }
 
+  Future<void> duplicateMetric({
+    required String areaId,
+    required String metricId,
+  }) async {
+    final area = _getArea(areaId);
+    if (area == null) return;
+
+    final index = area.metrics.indexWhere((metric) => metric.id == metricId);
+    if (index == -1) return;
+
+    final now = DateTime.now();
+    final duplicated = _duplicateMetric(
+      area.metrics[index],
+      now,
+      titleSuffix: true,
+    );
+    final metrics = [...area.metrics]..insert(index + 1, duplicated);
+
+    final updatedArea = area.copyWith(updatedAt: now, metrics: metrics);
+    await _box.put(areaId, updatedArea.toMap());
+    await _syncArea(updatedArea);
+  }
+
   Future<void> syncAll() async {
     for (final area in getAll()) {
       await _syncArea(area);
@@ -234,7 +277,46 @@ class ProgressRepository {
 
   int _clampPercent(int percent) => percent.clamp(0, 100).toInt();
 
-  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+  int _idSalt = 0;
+
+  String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${_idSalt++}';
+
+  ProgressMetricModel _duplicateMetric(
+    ProgressMetricEntity metric,
+    DateTime now, {
+    required bool titleSuffix,
+  }) {
+    return ProgressMetricModel(
+      id: _newId(),
+      title: titleSuffix ? '${metric.title} (cópia)' : metric.title,
+      description: metric.description,
+      percent: metric.percent,
+      createdAt: now,
+      updatedAt: now,
+      history: metric.history
+          .map(
+            (checkpoint) => SkillCheckpointModel(
+              id: _newId(),
+              percent: checkpoint.percent,
+              note: checkpoint.note,
+              createdAt: checkpoint.createdAt,
+            ),
+          )
+          .toList(),
+      details: metric.details.map(_duplicateDetail).toList(),
+    );
+  }
+
+  MetricDetailModel _duplicateDetail(MetricDetailEntity detail) {
+    return MetricDetailModel(
+      id: _newId(),
+      title: detail.title,
+      description: detail.description,
+      type: detail.type,
+      items: detail.items.map(_duplicateDetail).toList(),
+    );
+  }
 
   Future<void> _syncArea(ProgressAreaEntity area) =>
       _firebaseSync?.setDocument('progressAreas', area.id, {

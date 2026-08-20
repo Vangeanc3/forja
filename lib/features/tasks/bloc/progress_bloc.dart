@@ -11,9 +11,11 @@ class ProgressBloc extends Bloc<ProgressEvent, ProgressState> {
     on<ProgressAreaCreated>(_onAreaCreated);
     on<ProgressAreaUpdated>(_onAreaUpdated);
     on<ProgressAreaDeleted>(_onAreaDeleted);
+    on<ProgressAreaDuplicated>(_onAreaDuplicated);
     on<ProgressMetricCreated>(_onMetricCreated);
     on<ProgressMetricUpdated>(_onMetricUpdated);
     on<ProgressMetricDeleted>(_onMetricDeleted);
+    on<ProgressMetricDuplicated>(_onMetricDuplicated);
   }
 
   final ProgressRepository _repository;
@@ -53,6 +55,14 @@ class ProgressBloc extends Bloc<ProgressEvent, ProgressState> {
     emit(ProgressState(areas: _repository.getAll()));
   }
 
+  Future<void> _onAreaDuplicated(
+    ProgressAreaDuplicated event,
+    Emitter<ProgressState> emit,
+  ) async {
+    await _repository.duplicateArea(event.id);
+    emit(ProgressState(areas: _repository.getAll()));
+  }
+
   Future<void> _onMetricCreated(
     ProgressMetricCreated event,
     Emitter<ProgressState> emit,
@@ -89,6 +99,17 @@ class ProgressBloc extends Bloc<ProgressEvent, ProgressState> {
     Emitter<ProgressState> emit,
   ) async {
     await _repository.deleteMetric(
+      areaId: event.areaId,
+      metricId: event.metricId,
+    );
+    emit(ProgressState(areas: _repository.getAll()));
+  }
+
+  Future<void> _onMetricDuplicated(
+    ProgressMetricDuplicated event,
+    Emitter<ProgressState> emit,
+  ) async {
+    await _repository.duplicateMetric(
       areaId: event.areaId,
       metricId: event.metricId,
     );

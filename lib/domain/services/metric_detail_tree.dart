@@ -30,6 +30,28 @@ abstract final class MetricDetailTree {
     return true;
   }
 
+  /// Duplica o tópico [detailId] (em qualquer profundidade), gerando ids
+  /// novos para ele e para toda a sua subárvore, e insere a cópia logo
+  /// depois do original, como irmã dele.
+  static List<MetricDetailEntity> duplicate({
+    required List<MetricDetailEntity> details,
+    required String detailId,
+    required String Function() generateId,
+  }) {
+    final original = findById(details, detailId);
+    if (original == null) {
+      throw StateError('Tópico não encontrado: $detailId');
+    }
+
+    final clone = _cloneWithNewIds(
+      original,
+      generateId,
+      titleSuffix: true,
+    );
+
+    return _insertAfterId(details, detailId, clone);
+  }
+
   static List<MetricDetailEntity> groupIntoParent({
     required List<MetricDetailEntity> details,
     required MetricDetailEntity parent,
@@ -180,6 +202,51 @@ abstract final class MetricDetailTree {
     }
 
     return result.details;
+  }
+
+  static MetricDetailEntity _cloneWithNewIds(
+    MetricDetailEntity detail,
+    String Function() generateId, {
+    required bool titleSuffix,
+  }) {
+    return MetricDetailEntity(
+      id: generateId(),
+      title: titleSuffix ? '${detail.title} (cópia)' : detail.title,
+      description: detail.description,
+      type: detail.type,
+      items: detail.items
+          .map(
+            (item) =>
+                _cloneWithNewIds(item, generateId, titleSuffix: false),
+          )
+          .toList(),
+    );
+  }
+
+  static List<MetricDetailEntity> _insertAfterId(
+    List<MetricDetailEntity> details,
+    String targetId,
+    MetricDetailEntity toInsert,
+  ) {
+    final next = <MetricDetailEntity>[];
+
+    for (final detail in details) {
+      if (detail.id == targetId) {
+        next.add(detail);
+        next.add(toInsert);
+        continue;
+      }
+
+      next.add(
+        containsId(detail.items, targetId)
+            ? detail.copyWith(
+                items: _insertAfterId(detail.items, targetId, toInsert),
+              )
+            : detail,
+      );
+    }
+
+    return next;
   }
 
   static bool _detailEquals(

@@ -96,6 +96,22 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
     }
   }
 
+  void _duplicateItem(int index) {
+    var seed = 0;
+    final item = _items[index];
+    final duplicated = MetricDetailTree.duplicate(
+      details: _items,
+      detailId: item.id,
+      generateId: () => '${DateTime.now().microsecondsSinceEpoch}-${seed++}',
+    );
+
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(duplicated);
+    });
+  }
+
   void _onReorderItems(int oldIndex, int newIndex) {
     if (_selectionMode) return;
     setState(() {
@@ -421,6 +437,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                         ? () => _toggleItemSelection(item)
                         : () => _addOrEditItem(index),
                     onLongPress: () => _toggleItemSelection(item),
+                    onDuplicate: () => _duplicateItem(index),
                     onRemove: () => _removeItem(index),
                   );
                 },
@@ -437,6 +454,7 @@ class _ItemCard extends StatelessWidget {
     required this.dragIndex,
     required this.item,
     required this.onTap,
+    required this.onDuplicate,
     required this.onRemove,
     this.selected = false,
     this.selectionMode = false,
@@ -447,6 +465,7 @@ class _ItemCard extends StatelessWidget {
   final int dragIndex;
   final MetricDetailEntity item;
   final VoidCallback onTap;
+  final VoidCallback onDuplicate;
   final VoidCallback onRemove;
   final bool selected;
   final bool selectionMode;
@@ -515,6 +534,14 @@ class _ItemCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (!selectionMode)
+                  IconButton(
+                    tooltip: 'Duplicar item',
+                    onPressed: onDuplicate,
+                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    color: ForjaColors.textSecondary,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 IconButton(
                   onPressed: selectionMode ? null : onRemove,
                   icon: const Icon(Icons.delete_outline, size: 20),
