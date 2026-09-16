@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/bootstrap/app_blocs.dart';
 import 'core/bootstrap/firebase_bootstrap.dart';
@@ -12,6 +13,7 @@ import 'data/repositories/settings_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('pt_BR', null);
 
   await Hive.initFlutter();
   await Future.wait([

@@ -31,6 +31,7 @@ class JournalBloc extends Bloc<JournalEvent, JournalState> {
       question: event.question,
       answer: event.answer,
       extra: event.extra,
+      mood: event.mood,
     );
     emit(_snapshotFrom(_repository));
   }

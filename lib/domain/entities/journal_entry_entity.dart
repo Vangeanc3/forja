@@ -6,6 +6,7 @@ class JournalEntryEntity {
     this.question = '',
     this.answer = '',
     this.extra = '',
+    this.mood = '',
   }) : updatedAt = updatedAt ?? date;
 
   final String content;
@@ -14,6 +15,7 @@ class JournalEntryEntity {
   final String question;
   final String answer;
   final String extra;
+  final String mood;
 
   bool get hasStructuredContent =>
       question.trim().isNotEmpty ||

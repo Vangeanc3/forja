@@ -16,12 +16,14 @@ class JournalTodayEntrySaved extends JournalEvent {
     required this.question,
     required this.answer,
     required this.extra,
+    this.mood = '',
   });
 
   final String question;
   final String answer;
   final String extra;
+  final String mood;
 
   @override
-  List<Object?> get props => [question, answer, extra];
+  List<Object?> get props => [question, answer, extra, mood];
 }

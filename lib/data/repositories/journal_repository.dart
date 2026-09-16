@@ -29,6 +29,7 @@ class JournalRepository {
     required String question,
     required String answer,
     required String extra,
+    String mood = '',
   }) async {
     final existingEntry = _todayEntry();
     final entry = JournalEntryModel(
@@ -37,6 +38,7 @@ class JournalRepository {
       question: question,
       answer: answer,
       extra: extra,
+      mood: mood,
     );
 
     await _box.put(_entryId(entry), entry.toMap());

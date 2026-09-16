@@ -19,16 +19,25 @@ class JournalScreen extends StatefulWidget {
 class _JournalScreenState extends State<JournalScreen> {
   final _answerController = TextEditingController();
   final _extraController = TextEditingController();
+  final _extraFocusNode = FocusNode();
   JournalEntryEntity? _previewTodayEntry;
-  bool _useQuestion = true;
-  bool _useExtra = true;
+  int _viewIndex = 0; // 0: Escrever hoje, 1: Histórico
+  String _selectedMood = '';
   bool _editingToday = true;
   bool _loadedInitialEntry = false;
+
+  final List<Map<String, String>> _moods = [
+    {'label': 'Focado', 'icon': '🎯'},
+    {'label': 'Produtivo', 'icon': '⚡'},
+    {'label': 'Equilibrado', 'icon': '⚖️'},
+    {'label': 'Cansado', 'icon': '🔋'},
+  ];
 
   @override
   void dispose() {
     _answerController.dispose();
     _extraController.dispose();
+    _extraFocusNode.dispose();
     super.dispose();
   }
 
@@ -45,36 +54,21 @@ class _JournalScreenState extends State<JournalScreen> {
 
   void _loadTodayEntry(JournalEntryEntity? entry) {
     if (entry == null) {
-      _useQuestion = true;
-      _useExtra = true;
+      _selectedMood = '';
       _answerController.clear();
       _extraController.clear();
       return;
     }
 
-    final hasAnswer =
-        entry.answer.trim().isNotEmpty || entry.question.trim().isNotEmpty;
-    final hasExtra = entry.extra.trim().isNotEmpty;
-    final isLegacyEntry =
-        !entry.hasStructuredContent && entry.content.trim().isNotEmpty;
-
-    _useQuestion = hasAnswer;
-    _useExtra = hasExtra || isLegacyEntry;
-    if (!_useQuestion && !_useExtra) {
-      _useQuestion = true;
-    }
-
+    _selectedMood = entry.mood;
     _answerController.text = entry.answer;
-    _extraController.text = hasExtra ? entry.extra : entry.content;
+    _extraController.text = entry.extra.isNotEmpty ? entry.extra : entry.content;
   }
 
-  void _startEditing(JournalEntryEntity? entry, {bool forceExtra = false}) {
+  void _startEditing(JournalEntryEntity? entry) {
     _loadTodayEntry(entry);
     setState(() {
       _editingToday = true;
-      if (forceExtra) {
-        _useExtra = true;
-      }
     });
   }
 
@@ -83,30 +77,13 @@ class _JournalScreenState extends State<JournalScreen> {
     setState(() => _editingToday = entry == null);
   }
 
-  void _toggleQuestion(bool selected) {
-    setState(() {
-      _useQuestion = selected;
-      if (!_useQuestion && !_useExtra) {
-        _useExtra = true;
-      }
-    });
-  }
-
-  void _toggleExtra(bool selected) {
-    setState(() {
-      _useExtra = selected;
-      if (!_useQuestion && !_useExtra) {
-        _useQuestion = true;
-      }
-    });
-  }
 
   void _saveEntry({
     required String question,
     required JournalEntryEntity? currentEntry,
   }) {
-    final answer = _useQuestion ? _answerController.text.trim() : '';
-    final extra = _useExtra ? _extraController.text.trim() : '';
+    final answer = _answerController.text.trim();
+    final extra = _extraController.text.trim();
 
     if (answer.isEmpty && extra.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,16 +96,18 @@ class _JournalScreenState extends State<JournalScreen> {
     final previewEntry = JournalEntryEntity(
       date: currentEntry?.date ?? now,
       updatedAt: now,
-      question: _useQuestion ? question : '',
+      question: question,
       answer: answer,
       extra: extra,
+      mood: _selectedMood,
     );
 
     context.read<JournalBloc>().add(
       JournalTodayEntrySaved(
-        question: _useQuestion ? question : '',
+        question: question,
         answer: answer,
         extra: extra,
+        mood: _selectedMood,
       ),
     );
 
@@ -160,6 +139,11 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallMobile = screenWidth < 380;
+    final horizontalPadding = isSmallMobile ? 12.0 : 20.0;
+    final cardInnerPadding = isSmallMobile ? 16.0 : 26.0;
+
     final journalState = context.watch<JournalBloc>().state;
     final todayEntry = _previewTodayEntry ?? journalState.todayEntry;
     final previousEntries = journalState.entries
@@ -172,50 +156,659 @@ class _JournalScreenState extends State<JournalScreen> {
     final question =
         ForjaQuestions.list[dayOfYear % ForjaQuestions.list.length];
 
+    final primaryOrange = const Color(0xFFFF6D00);
+    const paperColor = Color(0xFF141414);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Diário')),
-      body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          itemCount: previousEntries.length + 2,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              if (!_editingToday && todayEntry != null) {
-                return _TodayJournalPage(
-                  entry: todayEntry,
-                  onEdit: () => _startEditing(todayEntry),
-                  onAddNote: () => _startEditing(todayEntry, forceExtra: true),
-                );
-              }
+      backgroundColor: const Color(0xFF0F0F0F),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          'Diário de Bordo',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                // Navegação por abas estilo caderno
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildResponsiveTabButton(
+                          0,
+                          'Folha de Hoje',
+                          Icons.edit_note,
+                          primaryOrange,
+                          isSmallMobile,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: _buildResponsiveTabButton(
+                          1,
+                          'Entradas Passadas',
+                          Icons.auto_stories,
+                          primaryOrange,
+                          isSmallMobile,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: _viewIndex == 0
+                      ? _buildFolhaDeHoje(
+                          paperColor,
+                          primaryOrange,
+                          question,
+                          todayEntry,
+                          cardInnerPadding,
+                          isSmallMobile,
+                        )
+                      : _buildHistoryView(
+                          ForjaColors.surface,
+                          primaryOrange,
+                          previousEntries,
+                          isSmallMobile,
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-              return _TodayJournalEditor(
-                question: question,
-                hasEntryToday: todayEntry != null,
-                useQuestion: _useQuestion,
-                useExtra: _useExtra,
-                answerController: _answerController,
-                extraController: _extraController,
-                onToggleQuestion: _toggleQuestion,
-                onToggleExtra: _toggleExtra,
-                onCancel: todayEntry != null
-                    ? () => _cancelEditing(todayEntry)
-                    : null,
-                onSave: () =>
-                    _saveEntry(question: question, currentEntry: todayEntry),
-              );
-            }
+  Widget _buildFolhaDeHoje(
+    Color paperColor,
+    Color primaryOrange,
+    String question,
+    JournalEntryEntity? todayEntry,
+    double innerPadding,
+    bool isSmallMobile,
+  ) {
+    final now = DateTime.now();
+    final dayStr = DateFormat('d', 'pt_BR').format(now);
+    final monthYearStr = DateFormat('\'de\' MMMM, yyyy', 'pt_BR').format(now);
+    final dayOfWeekStr = DateFormat('EEEE', 'pt_BR').format(now);
 
-            if (index == 1) {
-              return _JournalHistoryHeader(
-                hasEntries: previousEntries.isNotEmpty,
-                count: previousEntries.length,
-              );
-            }
+    final totalWords = (_answerController.text.trim().isEmpty
+            ? 0
+            : _answerController.text.trim().split(RegExp(r'\s+')).length) +
+        (_extraController.text.trim().isEmpty
+            ? 0
+            : _extraController.text.trim().split(RegExp(r'\s+')).length);
 
-            final entry = previousEntries[index - 2];
-            return _JournalEntryCard(entry: entry);
-          },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: paperColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Não força esticar até o fim da tela
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Cabeçalho da Folha sem overflow
+            Padding(
+              padding: EdgeInsets.fromLTRB(innerPadding, 18, innerPadding, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        dayStr,
+                        style: TextStyle(
+                          fontSize: isSmallMobile ? 30 : 34,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.0,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              monthYearStr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 14 : 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              dayOfWeekStr.capitalize(),
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 12,
+                                color: Colors.white38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: primaryOrange.withValues(alpha: 0.1),
+                          border: Border.all(color: primaryOrange.withValues(alpha: 0.3)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'PÁGINA DO DIA',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 9 : 10,
+                            letterSpacing: 1.0,
+                            fontWeight: FontWeight.bold,
+                            color: primaryOrange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Humor do dia em linha horizontal compacta
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: _moods.map((m) {
+                        final isSel = _selectedMood == m['label'];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text('${m['icon']} ${m['label']}'),
+                            selected: isSel,
+                            onSelected: (val) =>
+                                setState(() => _selectedMood = val ? m['label']! : ''),
+                            backgroundColor: Colors.white.withValues(alpha: 0.03),
+                            selectedColor: primaryOrange.withValues(alpha: 0.2),
+                            labelStyle: TextStyle(
+                              fontSize: isSmallMobile ? 11.5 : 12,
+                              color: isSel ? primaryOrange : Colors.white60,
+                            ),
+                            side: BorderSide(
+                              color: isSel ? primaryOrange : Colors.white10,
+                            ),
+                            showCheckmark: false,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+
+            // Seção 1: Reflexão Diária
+            Padding(
+              padding: EdgeInsets.fromLTRB(innerPadding, 16, innerPadding, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_outlined,
+                        color: primaryOrange,
+                        size: isSmallMobile ? 15 : 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'REFLEXÃO DIÁRIA',
+                        style: TextStyle(
+                          color: primaryOrange,
+                          fontSize: isSmallMobile ? 10.5 : 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '“$question”',
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 14 : 15,
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFFF0F0F0),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _answerController,
+                    maxLines: 4,
+                    minLines: 2,
+                    onChanged: (_) => setState(() {}),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isSmallMobile ? 13.5 : 14,
+                      height: 1.6,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Escreva sua reflexão sobre essa pergunta...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        fontSize: isSmallMobile ? 12.5 : 13,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.02),
+                      contentPadding: const EdgeInsets.all(14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: primaryOrange.withValues(alpha: 0.6)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Subtítulo sutil de transição para escrita livre
+            Padding(
+              padding: EdgeInsets.fromLTRB(innerPadding, 20, innerPadding, 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.edit_note_rounded,
+                    size: isSmallMobile ? 16 : 18,
+                    color: Colors.white38,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Crônica do Dia & Notas Livres',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: isSmallMobile ? 11.5 : 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.06))),
+                ],
+              ),
+            ),
+
+            // Seção 2: Área Ampla de Escrita
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _extraFocusNode.requestFocus(),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: innerPadding),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: isSmallMobile ? 140 : 180,
+                  ), // Altura acolhedora sem vácuo
+                  child: TextField(
+                    controller: _extraController,
+                    focusNode: _extraFocusNode,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (_) => setState(() {}),
+                    style: TextStyle(
+                      color: const Color(0xFFEEEEEE),
+                      fontSize: isSmallMobile ? 14 : 15,
+                      height: 1.8,
+                    ),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Como foi o dia? Registre estudos para o concurso da PC, rotina, treinos, pensamentos...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        fontSize: isSmallMobile ? 13 : 14,
+                      ),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Rodapé da Folha com Wrap (sem overflow)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: innerPadding, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                runAlignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 10,
+                children: [
+                  Text(
+                    totalWords == 0 ? 'Página em branco' : '$totalWords palavras',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: isSmallMobile ? 11.5 : 12,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _saveEntry(question: question, currentEntry: todayEntry),
+                    icon: Icon(Icons.bookmark_added_outlined, size: isSmallMobile ? 15 : 16),
+                    label: Text(
+                      todayEntry != null ? 'Atualizar Diário' : 'Registrar no Diário',
+                      style: TextStyle(fontSize: isSmallMobile ? 13 : 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryOrange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSmallMobile ? 16 : 22,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryView(
+    Color cardBg,
+    Color primaryOrange,
+    List<JournalEntryEntity> entries,
+    bool isSmallMobile,
+  ) {
+    if (entries.isEmpty) {
+      return const Center(
+        child: Text(
+          'Nenhuma entrada anterior encontrada.',
+          style: TextStyle(color: Colors.white38),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 30),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        final isLast = index == entries.length - 1;
+        return _buildTimelineEntry(entry, primaryOrange, isLast, isSmallMobile);
+      },
+    );
+  }
+
+  Widget _buildTimelineEntry(
+    JournalEntryEntity entry,
+    Color primaryOrange,
+    bool isLast,
+    bool isSmallMobile,
+  ) {
+    final dateStr = DateFormat('dd/MM/yyyy').format(entry.date);
+    final dayOfWeekStr = DateFormat('EEEE', 'pt_BR').format(entry.date);
+    final timeStr = DateFormat('HH:mm').format(entry.updatedAt);
+    final moodData = _moods.firstWhere(
+      (m) => m['label'] == entry.mood,
+      orElse: () => {'label': '', 'icon': ''},
+    );
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Coluna da Linha do Tempo contínua
+          SizedBox(
+            width: isSmallMobile ? 20 : 24,
+            child: Column(
+              children: [
+                Container(
+                  width: isSmallMobile ? 10 : 12,
+                  height: isSmallMobile ? 10 : 12,
+                  margin: const EdgeInsets.only(top: 18),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primaryOrange,
+                    border: Border.all(color: const Color(0xFF0F0F0F), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryOrange.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: isLast
+                      ? const SizedBox.shrink()
+                      : Container(width: 2, color: Colors.white12),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: isSmallMobile ? 8 : 12),
+
+          // Card da Entrada Passada
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: EdgeInsets.all(isSmallMobile ? 14 : 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF161616),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Cabeçalho da data
+                  Row(
+                    children: [
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isSmallMobile ? 13 : 14,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '• ${dayOfWeekStr.capitalize()}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: isSmallMobile ? 11 : 12,
+                          ),
+                        ),
+                      ),
+                      if (moodData['label']!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${moodData['icon']} ${moodData['label']}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: isSmallMobile ? 11 : 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Pergunta e Reflexão (estruturado, sem markdown cru)
+                  if (entry.question.isNotEmpty && entry.answer.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border(
+                          left: BorderSide(color: primaryOrange.withValues(alpha: 0.7), width: 3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '“${entry.question}”',
+                            style: TextStyle(
+                              color: primaryOrange.withValues(alpha: 0.9),
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            entry.answer,
+                            style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (entry.extra.isNotEmpty) const SizedBox(height: 10),
+                  ],
+
+                  // Anotação livre (se houver)
+                  if (entry.extra.isNotEmpty)
+                    Text(
+                      entry.extra,
+                      style: const TextStyle(
+                        color: Color(0xFFE0E0E0),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  // Caso seja um registro antigo que usava apenas o campo content
+                  if (entry.question.isEmpty && entry.extra.isEmpty && entry.content.isNotEmpty)
+                    Text(
+                      entry.content,
+                      style: const TextStyle(
+                        color: Color(0xFFE0E0E0),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveTabButton(
+    int index,
+    String label,
+    IconData icon,
+    Color primaryOrange,
+    bool isSmall,
+  ) {
+    final isSelected = _viewIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _viewIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: isSmall ? 4 : 12),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryOrange.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: isSelected ? primaryOrange.withValues(alpha: 0.4) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: isSmall ? 15 : 16,
+              color: isSelected ? primaryOrange : Colors.white54,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isSmall ? 11.5 : 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? primaryOrange : Colors.white60,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -229,481 +822,12 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 }
 
-class _TodayJournalPage extends StatelessWidget {
-  const _TodayJournalPage({
-    required this.entry,
-    required this.onEdit,
-    required this.onAddNote,
-  });
-
-  final JournalEntryEntity entry;
-  final VoidCallback onEdit;
-  final VoidCallback onAddNote;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final updatedAt = DateFormat('HH:mm').format(entry.updatedAt);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ForjaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ForjaColors.ember.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _JournalIcon(icon: Icons.menu_book_rounded),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Página de hoje',
-                      style: text.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Atualizada às $updatedAt',
-                      style: text.bodySmall?.copyWith(
-                        color: ForjaColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _SavedPill(),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: ForjaColors.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ForjaColors.divider),
-            ),
-            child: FormattedText(
-              data: entry.displayContent,
-              style: text.bodyLarge?.copyWith(
-                color: ForjaColors.textPrimary,
-                height: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('EDITAR'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onAddNote,
-                  icon: const Icon(Icons.add_comment_outlined),
-                  label: const Text('ANOTAR'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+extension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
 
-class _TodayJournalEditor extends StatelessWidget {
-  const _TodayJournalEditor({
-    required this.question,
-    required this.hasEntryToday,
-    required this.useQuestion,
-    required this.useExtra,
-    required this.answerController,
-    required this.extraController,
-    required this.onToggleQuestion,
-    required this.onToggleExtra,
-    required this.onSave,
-    this.onCancel,
-  });
 
-  final String question;
-  final bool hasEntryToday;
-  final bool useQuestion;
-  final bool useExtra;
-  final TextEditingController answerController;
-  final TextEditingController extraController;
-  final ValueChanged<bool> onToggleQuestion;
-  final ValueChanged<bool> onToggleExtra;
-  final VoidCallback onSave;
-  final VoidCallback? onCancel;
 
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ForjaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ForjaColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const _JournalIcon(icon: Icons.edit_note_rounded),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasEntryToday ? 'Editando hoje' : 'Escrever hoje',
-                      style: text.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      hasEntryToday
-                          ? 'Salve para voltar à página escrita.'
-                          : 'Mantenha ativas as partes que quer usar.',
-                      style: text.bodySmall?.copyWith(
-                        color: ForjaColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _JournalSectionToggle(
-            icon: Icons.help_outline_rounded,
-            title: 'Responder pergunta',
-            subtitle: 'Usar a pergunta do dia como ponto de partida.',
-            selected: useQuestion,
-            onChanged: onToggleQuestion,
-          ),
-          const SizedBox(height: 8),
-          _JournalSectionToggle(
-            icon: Icons.add_comment_outlined,
-            title: 'Anotação livre',
-            subtitle: 'Registrar algo além da pergunta.',
-            selected: useExtra,
-            onChanged: onToggleExtra,
-          ),
-          if (useQuestion) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: ForjaColors.ember.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: ForjaColors.ember.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PERGUNTA DO DIA',
-                    style: text.labelSmall?.copyWith(
-                      color: ForjaColors.ember,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    question,
-                    style: text.titleMedium?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: ForjaColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            FormattedTextField(
-              controller: answerController,
-              labelText: 'Resposta',
-              hintText: 'Escreva sua resposta...',
-              minLines: 4,
-              filled: true,
-              fillColor: ForjaColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ],
-          if (useExtra) ...[
-            const SizedBox(height: 12),
-            FormattedTextField(
-              controller: extraController,
-              labelText: 'Anotação livre',
-              hintText: 'Acrescente pensamentos, fatos ou aprendizados...',
-              minLines: 4,
-              filled: true,
-              fillColor: ForjaColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: onSave,
-            icon: const Icon(Icons.save_outlined),
-            label: Text(hasEntryToday ? 'SALVAR ALTERAÇÕES' : 'SALVAR PÁGINA'),
-          ),
-          if (onCancel != null) ...[
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: onCancel,
-              icon: const Icon(Icons.close_rounded),
-              label: const Text('CANCELAR E VOLTAR'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _JournalSectionToggle extends StatelessWidget {
-  const _JournalSectionToggle({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final borderColor = selected
-        ? ForjaColors.ember.withValues(alpha: 0.55)
-        : ForjaColors.divider;
-    final backgroundColor = selected
-        ? ForjaColors.ember.withValues(alpha: 0.08)
-        : ForjaColors.background;
-
-    return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: () => onChanged(!selected),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: selected ? ForjaColors.ember : ForjaColors.textSecondary,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: text.bodyLarge?.copyWith(
-                        color: ForjaColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: text.bodySmall?.copyWith(
-                        color: ForjaColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Checkbox(
-                value: selected,
-                onChanged: (value) => onChanged(value ?? false),
-                activeColor: ForjaColors.ember,
-                side: const BorderSide(color: ForjaColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JournalHistoryHeader extends StatelessWidget {
-  const _JournalHistoryHeader({required this.hasEntries, required this.count});
-
-  final bool hasEntries;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-
-    if (!hasEntries) {
-      return Text(
-        'Nenhuma entrada anterior ainda.',
-        style: text.bodyMedium?.copyWith(color: ForjaColors.textSecondary),
-        textAlign: TextAlign.center,
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'HISTÓRICO',
-            style: text.labelSmall?.copyWith(
-              color: ForjaColors.ember,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-        Text(
-          '$count ${count == 1 ? 'entrada' : 'entradas'}',
-          style: text.bodySmall?.copyWith(color: ForjaColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _JournalEntryCard extends StatelessWidget {
-  const _JournalEntryCard({required this.entry});
-
-  final JournalEntryEntity entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ForjaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ForjaColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  DateFormat('dd/MM/yyyy').format(entry.date),
-                  style: text.labelSmall?.copyWith(color: ForjaColors.ember),
-                ),
-              ),
-              Text(
-                DateFormat('HH:mm').format(entry.updatedAt),
-                style: text.bodySmall?.copyWith(
-                  color: ForjaColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FormattedText(
-            data: entry.displayContent,
-            style: text.bodyLarge?.copyWith(
-              color: ForjaColors.textPrimary,
-              height: 1.45,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _JournalIcon extends StatelessWidget {
-  const _JournalIcon({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: ForjaColors.ember.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ForjaColors.ember.withValues(alpha: 0.35)),
-      ),
-      child: Icon(icon, color: ForjaColors.ember),
-    );
-  }
-}
-
-class _SavedPill extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.35)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_rounded, color: Colors.green, size: 14),
-          SizedBox(width: 3),
-          Text(
-            'SALVO',
-            style: TextStyle(
-              color: Colors.green,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

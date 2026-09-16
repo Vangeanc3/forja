@@ -7,6 +7,7 @@ class JournalEntryModel extends JournalEntryEntity {
     super.question = '',
     super.answer = '',
     super.extra = '',
+    super.mood = '',
     String? content,
   }) : super(content: content ?? _buildContent(question, answer, extra));
 
@@ -20,6 +21,7 @@ class JournalEntryModel extends JournalEntryEntity {
         question: entity.question,
         answer: entity.answer,
         extra: entity.extra,
+        mood: entity.mood,
       );
 
   factory JournalEntryModel.fromMap(Map<dynamic, dynamic> map) =>
@@ -30,6 +32,7 @@ class JournalEntryModel extends JournalEntryEntity {
         question: map['question'] as String? ?? '',
         answer: map['answer'] as String? ?? '',
         extra: map['extra'] as String? ?? '',
+        mood: map['mood'] as String? ?? '',
       );
 
   Map<String, dynamic> toMap() => {
@@ -39,6 +42,7 @@ class JournalEntryModel extends JournalEntryEntity {
     'question': question,
     'answer': answer,
     'extra': extra,
+    'mood': mood,
   };
 }
 
