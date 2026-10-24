@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:markdown/markdown.dart' as md;
 
 import 'package:forja/core/theme.dart';
+import 'markdown_code_block.dart';
 
 class FormattedText extends StatelessWidget {
   const FormattedText({
@@ -21,7 +23,8 @@ class FormattedText extends StatelessWidget {
     final baseStyle =
         style ??
         theme.textTheme.bodyMedium?.copyWith(
-          color: ForjaColors.textSecondary,
+          color: ForjaColors.textPrimary,
+          height: 1.6,
         ) ??
         const TextStyle(color: ForjaColors.textSecondary);
     final primaryStyle = baseStyle.copyWith(color: ForjaColors.textPrimary);
@@ -34,6 +37,9 @@ class FormattedText extends StatelessWidget {
       data: data.trim(),
       selectable: selectable,
       softLineBreak: true,
+      extensionSet: md.ExtensionSet.gitHubWeb,
+      listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
+      builders: {'pre': MarkdownCodeBlockBuilder()},
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         p: baseStyle,
         pPadding: EdgeInsets.zero,
@@ -43,14 +49,29 @@ class FormattedText extends StatelessWidget {
           color: ForjaColors.textPrimary,
           fontWeight: FontWeight.w800,
         ),
-        h2: headingStyle,
-        h3: headingStyle,
+        h2: headingStyle?.copyWith(fontSize: 22),
+        h3: headingStyle?.copyWith(fontSize: 19),
+        h1Padding: const EdgeInsets.only(top: 16, bottom: 8),
+        h2Padding: const EdgeInsets.only(top: 12, bottom: 6),
+        h3Padding: const EdgeInsets.only(top: 8, bottom: 4),
         h4: primaryStyle.copyWith(fontWeight: FontWeight.w700),
         h5: primaryStyle.copyWith(fontWeight: FontWeight.w700),
         h6: primaryStyle.copyWith(fontWeight: FontWeight.w700),
-        blockSpacing: 8,
-        listIndent: 24,
+        blockSpacing: 12,
+        listIndent: 28,
         listBullet: baseStyle,
+        listBulletPadding: const EdgeInsets.only(right: 8),
+        tableHead: primaryStyle.copyWith(fontWeight: FontWeight.w700),
+        tableBody: baseStyle,
+        tableColumnWidth: const IntrinsicColumnWidth(),
+        tableCellsPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        tableBorder: TableBorder.all(color: ForjaColors.divider),
+        tableHeadCellsDecoration: const BoxDecoration(
+          color: ForjaColors.surfaceVariant,
+        ),
         code: primaryStyle.copyWith(
           fontFamily: 'monospace',
           backgroundColor: ForjaColors.surfaceVariant,
@@ -61,7 +82,7 @@ class FormattedText extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: ForjaColors.divider),
         ),
-        blockquote: baseStyle.copyWith(fontStyle: FontStyle.italic),
+        blockquote: baseStyle,
         blockquotePadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 8,
@@ -200,6 +221,7 @@ class _FormattedTextFieldState extends State<FormattedTextField> {
             const SizedBox(height: 10),
             FormattedText(
               data: previewData,
+              selectable: true,
               style: text.bodyMedium?.copyWith(
                 color: ForjaColors.textPrimary,
                 height: 1.45,
@@ -220,6 +242,13 @@ class _FormattedTextFieldState extends State<FormattedTextField> {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           textCapitalization: widget.textCapitalization,
+          autocorrect: false,
+          smartDashesType: SmartDashesType.disabled,
+          smartQuotesType: SmartQuotesType.disabled,
+          style: text.bodyMedium?.copyWith(
+            fontFamily: 'monospace',
+            height: 1.5,
+          ),
           decoration: InputDecoration(
             labelText: widget.labelText,
             hintText: widget.hintText,
@@ -229,6 +258,14 @@ class _FormattedTextFieldState extends State<FormattedTextField> {
             border: widget.border,
           ),
         ),
+        if (widget.showPreview) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Markdown: **negrito**, - lista, > citação e ```linguagem para código. '
+            'Recue os subitens com espaços; use blocos de código para preservar alinhamentos.',
+            style: text.bodySmall?.copyWith(color: ForjaColors.textSecondary),
+          ),
+        ],
         if (widget.showPreview && previewData.isNotEmpty) ...[
           const SizedBox(height: 8),
           Align(
