@@ -4,6 +4,7 @@ import 'package:markdown/markdown.dart' as md;
 
 import 'package:forja/core/theme.dart';
 import 'markdown_code_block.dart';
+import 'markdown_math.dart';
 
 class FormattedText extends StatelessWidget {
   const FormattedText({
@@ -38,8 +39,14 @@ class FormattedText extends StatelessWidget {
       selectable: selectable,
       softLineBreak: true,
       extensionSet: md.ExtensionSet.gitHubWeb,
+      blockSyntaxes: const [MarkdownMathBlockSyntax()],
+      inlineSyntaxes: [MarkdownMathInlineSyntax()],
       listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
-      builders: {'pre': MarkdownCodeBlockBuilder()},
+      builders: {
+        'pre': MarkdownCodeBlockBuilder(),
+        'math-block': MarkdownMathBuilder(display: true, style: baseStyle),
+        'math-inline': MarkdownMathBuilder(display: false, style: baseStyle),
+      },
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         p: baseStyle,
         pPadding: EdgeInsets.zero,
@@ -262,6 +269,7 @@ class _FormattedTextFieldState extends State<FormattedTextField> {
           const SizedBox(height: 6),
           Text(
             'Markdown: **negrito**, - lista, > citação e ```linguagem para código. '
+            'Fórmulas: \$expressão\$ no texto ou \$\$expressão\$\$ em destaque. '
             'Recue os subitens com espaços; use blocos de código para preservar alinhamentos.',
             style: text.bodySmall?.copyWith(color: ForjaColors.textSecondary),
           ),
