@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:forja/core/theme.dart';
 import 'markdown_code_block.dart';
@@ -17,6 +18,28 @@ class FormattedText extends StatelessWidget {
   final String data;
   final TextStyle? style;
   final bool selectable;
+
+  Future<void> _openLink(BuildContext context, String? href) async {
+    final uri = Uri.tryParse(href?.trim() ?? '');
+    const schemes = {'http', 'https', 'mailto', 'tel', 'sms', 'ftp'};
+    if (uri != null && schemes.contains(uri.scheme.toLowerCase())) {
+      try {
+        if (await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+          webOnlyWindowName: '_blank',
+        )) {
+          return;
+        }
+      } on Exception {
+        // Some platforms throw instead of returning false when no app opens it.
+      }
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('Não foi possível abrir este link.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +60,7 @@ class FormattedText extends StatelessWidget {
     return MarkdownBody(
       data: data.trim(),
       selectable: selectable,
+      onTapLink: (text, href, title) => _openLink(context, href),
       softLineBreak: true,
       extensionSet: md.ExtensionSet.gitHubWeb,
       blockSyntaxes: const [MarkdownMathBlockSyntax()],
@@ -49,6 +73,11 @@ class FormattedText extends StatelessWidget {
       },
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
         p: baseStyle,
+        a: baseStyle.copyWith(
+          color: ForjaColors.emberGlow,
+          decoration: TextDecoration.underline,
+          decorationColor: ForjaColors.emberGlow,
+        ),
         pPadding: EdgeInsets.zero,
         strong: primaryStyle.copyWith(fontWeight: FontWeight.w800),
         em: baseStyle.copyWith(fontStyle: FontStyle.italic),
