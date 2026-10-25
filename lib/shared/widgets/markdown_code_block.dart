@@ -5,6 +5,7 @@ import 'package:highlight/highlight.dart' as syntax;
 import 'package:markdown/markdown.dart' as md;
 
 import 'package:forja/core/theme.dart';
+import 'ascii_diagram.dart';
 
 /// Handles only block code, leaving inline backticks to the Markdown renderer.
 class MarkdownCodeBlockBuilder extends MarkdownElementBuilder {
@@ -52,6 +53,8 @@ class MarkdownCodeBlock extends StatefulWidget {
 class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
   final _scrollController = ScrollController();
   late TextSpan _highlighted;
+  AsciiDiagram? _diagram;
+  bool _showDiagram = true;
 
   static const _colors = <String, Color>{
     'keyword': Color(0xFFC792EA),
@@ -92,6 +95,16 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
   }
 
   void _highlight() {
+    _diagram =
+        const {
+          '',
+          'text',
+          'plaintext',
+          'ascii',
+          'diagram',
+        }.contains(widget.language)
+        ? AsciiDiagram.tryParse(widget.source)
+        : null;
     final language = switch (widget.language) {
       'c#' || 'cs' => 'csharp',
       'js' => 'javascript',
@@ -128,9 +141,61 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.source));
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(const SnackBar(content: Text('Código copiado')));
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(_diagram == null ? 'Código copiado' : 'Diagrama copiado'),
+      ),
+    );
+  }
+
+  void _expandDiagram() {
+    final diagram = _diagram;
+    if (diagram == null) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: ForjaColors.surfaceVariant,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Diagrama',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Fechar',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              const Text(
+                'Arraste para mover. Use o gesto de pinça ou a roda do mouse para ampliar.',
+              ),
+              Expanded(
+                child: InteractiveViewer(
+                  constrained: false,
+                  minScale: .25,
+                  maxScale: 4,
+                  boundaryMargin: const EdgeInsets.all(200),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: DiagramCanvas(diagram: diagram),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -148,7 +213,13 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
           children: [
             Expanded(
               child: Text(
-                widget.language.isEmpty ? 'texto' : widget.language,
+                _diagram != null
+                    ? 'diagrama'
+                    : widget.language.isEmpty
+                    ? 'texto'
+                    : widget.language,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: ForjaColors.textSecondary,
                   fontSize: 12,
@@ -156,33 +227,59 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
                 ),
               ),
             ),
-            TextButton.icon(
-              onPressed: _copy,
-              icon: const Icon(Icons.copy_outlined, size: 16),
-              label: const Text('Copiar'),
-            ),
+            if (_diagram != null) ...[
+              IconButton(
+                tooltip: _showDiagram ? 'Ver texto original' : 'Ver diagrama',
+                onPressed: () => setState(() => _showDiagram = !_showDiagram),
+                icon: Icon(
+                  _showDiagram ? Icons.code : Icons.account_tree_outlined,
+                  size: 18,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Ampliar diagrama',
+                onPressed: _expandDiagram,
+                icon: const Icon(Icons.open_in_full, size: 18),
+              ),
+            ],
+            if (_diagram != null &&
+                MediaQuery.textScalerOf(context).scale(14) > 18)
+              IconButton(
+                tooltip: 'Copiar',
+                onPressed: _copy,
+                icon: const Icon(Icons.copy_outlined, size: 18),
+              )
+            else
+              TextButton.icon(
+                onPressed: _copy,
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: const Text('Copiar'),
+              ),
           ],
         ),
       ),
-      Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: true,
-        child: SingleChildScrollView(
+      if (_diagram != null && _showDiagram)
+        AsciiDiagramView(diagram: _diagram!)
+      else
+        Scrollbar(
           controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(14),
-          child: SelectableText.rich(
-            _highlighted,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              height: 1.6,
-              color: ForjaColors.textPrimary,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.all(14),
+            child: SelectableText.rich(
+              _highlighted,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 13,
+                height: 1.6,
+                color: ForjaColors.textPrimary,
+              ),
+              textScaler: MediaQuery.textScalerOf(context),
             ),
-            textScaler: MediaQuery.textScalerOf(context),
           ),
         ),
-      ),
     ],
   );
 }
