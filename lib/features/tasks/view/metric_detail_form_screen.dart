@@ -4,6 +4,7 @@ import 'package:forja/domain/entities/progress_area_entity.dart';
 import 'package:forja/domain/services/metric_detail_tree.dart';
 import 'package:forja/features/tasks/view/widgets/group_topics_sheet.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
+import 'package:forja/shared/widgets/browser_back_protection.dart';
 
 class MetricDetailFormScreen extends StatefulWidget {
   const MetricDetailFormScreen({super.key, this.initialDetail});
@@ -20,6 +21,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   late MetricDetailType _type;
   final List<MetricDetailEntity> _items = [];
   bool _selectionMode = false;
+  bool _discardConfirmed = false;
   final Set<String> _selectedItemIds = {};
 
   @override
@@ -259,7 +261,8 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
 
-    return PopScope(
+    return BrowserBackGuard(
+      hasChanges: () => !_discardConfirmed && _hasChanges(),
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
@@ -276,6 +279,7 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
 
         final bool shouldPop = await _showDiscardDialog() ?? false;
         if (shouldPop && context.mounted) {
+          _discardConfirmed = true;
           Navigator.of(context).pop();
         }
       },
@@ -377,10 +381,8 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                     tooltip: 'Agrupar selecionados',
                     onPressed: _selectedItemIds.length >= 2
                         ? () => _groupItems(
-                              initialSelection: Set<String>.of(
-                                _selectedItemIds,
-                              ),
-                            )
+                            initialSelection: Set<String>.of(_selectedItemIds),
+                          )
                         : null,
                     icon: const Icon(Icons.account_tree_rounded),
                     color: ForjaColors.ember,
@@ -394,15 +396,13 @@ class _MetricDetailFormScreenState extends State<MetricDetailFormScreen> {
                 ] else ...[
                   IconButton(
                     tooltip: 'Selecionar tópicos',
-                    onPressed:
-                        _items.isNotEmpty ? _toggleSelectionMode : null,
+                    onPressed: _items.isNotEmpty ? _toggleSelectionMode : null,
                     icon: const Icon(Icons.checklist_rounded),
                     color: ForjaColors.ember,
                   ),
                   IconButton(
                     tooltip: 'Agrupar tópicos',
-                    onPressed:
-                        _items.length >= 2 ? () => _groupItems() : null,
+                    onPressed: _items.length >= 2 ? () => _groupItems() : null,
                     icon: const Icon(Icons.account_tree_rounded),
                     color: ForjaColors.ember,
                   ),

@@ -13,6 +13,7 @@ import 'package:forja/features/tasks/view/metric_detail_form_screen.dart';
 import 'package:forja/features/tasks/view/metric_detail_view_screen.dart';
 import 'package:forja/features/tasks/view/widgets/group_topics_sheet.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
+import 'package:forja/shared/widgets/browser_back_protection.dart';
 
 enum _AreaAction { edit, duplicate, delete }
 
@@ -832,11 +833,7 @@ class _EmptyAreasState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconBadge(
-              icon: Icons.auto_graph_rounded,
-              size: 56,
-              iconSize: 30,
-            ),
+            IconBadge(icon: Icons.auto_graph_rounded, size: 56, iconSize: 30),
             const SizedBox(height: 16),
             Text(
               'Nenhuma área registrada',
@@ -950,7 +947,6 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-
 class ProgressAreaFormScreen extends StatefulWidget {
   const ProgressAreaFormScreen({super.key, this.areaId});
 
@@ -964,6 +960,7 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   bool _saving = false;
+  bool _discardConfirmed = false;
 
   bool get _isEditing => widget.areaId != null;
 
@@ -1063,7 +1060,8 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
       );
     }
 
-    return PopScope(
+    return BrowserBackGuard(
+      hasChanges: () => !_saving && !_discardConfirmed && _hasChanges(),
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
@@ -1075,6 +1073,7 @@ class _ProgressAreaFormScreenState extends State<ProgressAreaFormScreen> {
 
         final bool shouldPop = await _showDiscardDialog() ?? false;
         if (shouldPop && context.mounted) {
+          _discardConfirmed = true;
           Navigator.of(context).pop();
         }
       },
@@ -1154,6 +1153,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
   final Set<String> _selectedDetailIds = {};
   bool _selectionMode = false;
   bool _saving = false;
+  bool _discardConfirmed = false;
 
   bool get _isEditing => widget.metricId != null;
 
@@ -1548,7 +1548,8 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
       );
     }
 
-    return PopScope(
+    return BrowserBackGuard(
+      hasChanges: () => !_saving && !_discardConfirmed && _hasChanges(),
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
@@ -1560,6 +1561,7 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
 
         final bool shouldPop = await _showDiscardDialog() ?? false;
         if (shouldPop && context.mounted) {
+          _discardConfirmed = true;
           Navigator.of(context).pop();
         }
       },
@@ -1970,7 +1972,6 @@ class _ProgressMetricFormScreenState extends State<ProgressMetricFormScreen> {
   }
 }
 
-
 class _MoveTopicResult {
   const _MoveTopicResult({required this.parentId});
 
@@ -2042,7 +2043,6 @@ class _SubtopicCountBadge extends StatelessWidget {
     );
   }
 }
-
 
 class _MoveTopicSheet extends StatelessWidget {
   const _MoveTopicSheet({

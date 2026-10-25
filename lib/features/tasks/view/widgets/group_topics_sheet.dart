@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:forja/core/theme.dart';
 import 'package:forja/domain/entities/progress_area_entity.dart';
 import 'package:forja/shared/widgets/formatted_text.dart';
+import 'package:forja/shared/widgets/browser_back_protection.dart';
 
 class GroupTopicsResult {
   const GroupTopicsResult({
@@ -112,118 +113,123 @@ class _GroupTopicsSheetState extends State<GroupTopicsSheet> {
         _titleController.text.trim().isNotEmpty && _selectedIds.length >= 2;
     final allSelected = _selectedIds.length == widget.details.length;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + viewInsets.bottom),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const IconBadge(icon: Icons.account_tree_rounded),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Agrupar tópicos',
-                      style: text.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return BrowserBackGuard(
+      hasChanges: () =>
+          _titleController.text.isNotEmpty ||
+          _descriptionController.text.isNotEmpty,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + viewInsets.bottom),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const IconBadge(icon: Icons.account_tree_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Agrupar tópicos',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _titleController,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do grupo',
-                  hintText: 'Classes de palavras',
+                  ],
                 ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              FormattedTextField(
-                controller: _descriptionController,
-                labelText: 'Descrição',
-                hintText: 'Resumo opcional',
-                minLines: 2,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_selectedIds.length} selecionados',
-                      style: text.bodySmall?.copyWith(
-                        color: ForjaColors.textSecondary,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _titleController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do grupo',
+                    hintText: 'Classes de palavras',
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 12),
+                FormattedTextField(
+                  controller: _descriptionController,
+                  labelText: 'Descrição',
+                  hintText: 'Resumo opcional',
+                  minLines: 2,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${_selectedIds.length} selecionados',
+                        style: text.bodySmall?.copyWith(
+                          color: ForjaColors.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _toggleAll,
-                    child: Text(allSelected ? 'LIMPAR' : 'SELECIONAR TODOS'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: widget.details.length,
-                  itemBuilder: (context, index) {
-                    final detail = widget.details[index];
-                    final checked = _selectedIds.contains(detail.id);
+                    TextButton(
+                      onPressed: _toggleAll,
+                      child: Text(allSelected ? 'LIMPAR' : 'SELECIONAR TODOS'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: widget.details.length,
+                    itemBuilder: (context, index) {
+                      final detail = widget.details[index];
+                      final checked = _selectedIds.contains(detail.id);
 
-                    return CheckboxListTile(
-                      value: checked,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        detail.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: detail.items.isEmpty
-                          ? null
-                          : Text('${detail.items.length} sub-itens'),
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == true) {
-                            _selectedIds.add(detail.id);
-                          } else {
-                            _selectedIds.remove(detail.id);
-                          }
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('CANCELAR'),
+                      return CheckboxListTile(
+                        value: checked,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          detail.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: detail.items.isEmpty
+                            ? null
+                            : Text('${detail.items.length} sub-itens'),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedIds.add(detail.id);
+                            } else {
+                              _selectedIds.remove(detail.id);
+                            }
+                          });
+                        },
+                      );
+                    },
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: canSubmit ? _submit : null,
-                      icon: const Icon(Icons.account_tree_rounded),
-                      label: const Text('AGRUPAR'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 48),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('CANCELAR'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: canSubmit ? _submit : null,
+                        icon: const Icon(Icons.account_tree_rounded),
+                        label: const Text('AGRUPAR'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

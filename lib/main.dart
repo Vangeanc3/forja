@@ -10,6 +10,7 @@ import 'core/notification_service.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'data/repositories/settings_repository.dart';
+import 'shared/widgets/browser_back_protection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,19 +54,34 @@ void main() async {
   }
 }
 
-class ForjaApp extends StatelessWidget {
+class ForjaApp extends StatefulWidget {
   const ForjaApp({super.key, required this.showOnboarding});
 
   final bool showOnboarding;
 
   @override
+  State<ForjaApp> createState() => _ForjaAppState();
+}
+
+class _ForjaAppState extends State<ForjaApp> {
+  late final _router = buildForjaRouter(showOnboarding: widget.showOnboarding);
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: ForjaStrings.appName,
-      debugShowCheckedModeBanner: false,
-      theme: forjaDarkTheme,
-      themeMode: ThemeMode.dark,
-      routerConfig: buildForjaRouter(showOnboarding: showOnboarding),
+    return BrowserBackProtection(
+      child: MaterialApp.router(
+        title: ForjaStrings.appName,
+        debugShowCheckedModeBanner: false,
+        theme: forjaDarkTheme,
+        themeMode: ThemeMode.dark,
+        routerConfig: _router,
+      ),
     );
   }
 }
